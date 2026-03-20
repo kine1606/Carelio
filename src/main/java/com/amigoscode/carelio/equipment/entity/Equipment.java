@@ -1,44 +1,46 @@
 package com.amigoscode.carelio.equipment.entity;
 
+import com.amigoscode.carelio.base.BaseEntity;
 import com.amigoscode.carelio.room.entity.Room;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "equipment")
-@Data
+@Getter
+@Setter
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Equipment
+public class Equipment extends BaseEntity
 {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
 
+    @Column(nullable = false)
     private String name;
+
     private String brand;
     private String model;
     private String serialNumber;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private EquipmentStatus status;
+
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private EquipmentConditionStatus conditionStatus;
 
-    @CreatedDate
-    private LocalDateTime createdAt;
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    @ManyToOne
+    @JoinColumn(name = "room_id", nullable = false)
+    private Room room;
 
-//    @ManyToOne
-//    @JoinColumn(name = "room_id")
-//    private Room room;
+    @ManyToOne
+    @JoinColumn(name = "equipment_category_id", nullable = false)
+    private EquipmentCategory equipmentCategory;
 }

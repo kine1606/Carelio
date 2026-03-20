@@ -1,38 +1,31 @@
 package com.amigoscode.carelio.room.entity;
 
+import com.amigoscode.carelio.base.BaseEntity;
 import com.amigoscode.carelio.equipment.entity.Equipment;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 
 import java.util.Date;
 import java.util.List;
 
 @Entity
 @Table(name = "room")
-@Data
+@Getter
+@Setter
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Room
+public class Room extends BaseEntity
 {
-    @Id
-    @GeneratedValue
-    private Long id;
-
-    @Column (nullable = false)
+    @Column(nullable = false)
     private String name;
 
     private String description;
-
-    @Column(nullable = true)
     private Integer floor;
-
-    @CreatedDate
-    private Date createdAt;
-    @UpdateTimestamp
-    private Date updatedAt;
 
     @OneToMany(mappedBy = "room")
     List<Equipment> equipments;
