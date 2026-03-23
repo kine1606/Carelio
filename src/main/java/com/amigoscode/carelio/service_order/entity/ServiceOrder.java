@@ -3,13 +3,6 @@ package com.amigoscode.carelio.service_order.entity;
 import com.amigoscode.carelio.base.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedBy;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedBy;
-import org.springframework.data.annotation.LastModifiedDate;
-
-import java.time.LocalDateTime;
-
 
 @Entity
 @Table(name = "service_order")
