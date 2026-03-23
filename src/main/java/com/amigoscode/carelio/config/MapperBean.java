@@ -1,5 +1,7 @@
 package com.amigoscode.carelio.config;
 
+import com.amigoscode.carelio.equipment.entity.Equipment;
+import com.amigoscode.carelio.equipment.mapper.EquipmentMapper;
 import com.amigoscode.carelio.room.mapper.RoomMapper;
 import org.mapstruct.factory.Mappers;
 import org.springframework.context.annotation.Bean;
@@ -12,5 +14,11 @@ public class MapperBean
     public RoomMapper roomMapper()
     {
         return Mappers.getMapper(RoomMapper.class);
+    }
+
+    @Bean
+    public EquipmentMapper equipmentMapper()
+    {
+        return Mappers.getMapper(EquipmentMapper.class);
     }
 }

@@ -40,7 +40,7 @@ public class Equipment extends BaseEntity
     @JoinColumn(name = "room_id", nullable = false)
     private Room room;
 
-    @ManyToOne
-    @JoinColumn(name = "equipment_category_id", nullable = false)
-    private EquipmentCategory equipmentCategory;
+//    @ManyToOne
+//    @JoinColumn(name = "equipment_category_id", nullable = false)
+//    private EquipmentCategory equipmentCategory;
 }

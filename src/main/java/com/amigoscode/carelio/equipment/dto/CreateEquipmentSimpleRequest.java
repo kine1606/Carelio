@@ -1,11 +1,7 @@
 package com.amigoscode.carelio.equipment.dto;
 
-import com.amigoscode.carelio.base.BaseEntity;
-import com.amigoscode.carelio.base.BaseResponse;
-import com.amigoscode.carelio.equipment.entity.Equipment;
 import com.amigoscode.carelio.equipment.entity.EquipmentConditionStatus;
 import com.amigoscode.carelio.equipment.entity.EquipmentStatus;
-import jakarta.persistence.Id;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -14,19 +10,21 @@ import lombok.*;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class EquipmentResponse extends BaseResponse {
-
+@Builder
+public class CreateEquipmentSimpleRequest
+{
+    @NotBlank(message = "Name is required")
     private String name;
-    private String brand;
-    private String model;
-    private String serialNumber;
 
+    @NotNull(message = "Status is required")
     private EquipmentStatus status;
+
+    @NotNull(message = "Condition status is required")
     private EquipmentConditionStatus conditionStatus;
 
+    @NotNull(message = "Room id is required")
     private Long roomId;
-    private String roomName;
 
-    private Long equipmentCategoryId;
-    private String equipmentCategoryName;
+//    @NotNull(message = "Equipment category id is required")
+//    private Long equipmentCategoryId;
 }

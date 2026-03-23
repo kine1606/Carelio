@@ -2,13 +2,9 @@ package com.amigoscode.carelio.room.entity;
 
 import com.amigoscode.carelio.base.BaseEntity;
 import com.amigoscode.carelio.equipment.entity.Equipment;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UpdateTimestamp;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-
-import java.util.Date;
 import java.util.List;
 
 @Entity
