@@ -17,6 +17,6 @@ public class EquipmentCategory extends BaseEntity
 {
     private String name;
 
-//    @OneToMany(mappedBy = "equipmentCategory")
-//    private List<Equipment> equipments;
+    @OneToMany(mappedBy = "equipmentCategory")
+    private List<Equipment> equipments;
 }

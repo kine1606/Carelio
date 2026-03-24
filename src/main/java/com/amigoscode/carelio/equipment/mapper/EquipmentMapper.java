@@ -18,5 +18,5 @@ public interface EquipmentMapper {
 
 //    EquipmentResponse toResponse(Equipment Equipment);
     EquipmentSimpleResponse toResponse(Equipment Equipment);
-    List<EquipmentResponse> toResponseList(List<Equipment> Equipments);
+//    List<EquipmentResponse> toResponseList(List<Equipment> Equipments);
 }

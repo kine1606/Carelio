@@ -24,5 +24,9 @@ public class Room extends BaseEntity
     private Integer floor;
 
     @OneToMany(mappedBy = "room")
-    List<Equipment> equipments;
+    private List<Equipment> equipments;
+
+//    @ManyToOne
+//    @JoinColumn(name = "user_id")
+//    private  User user;
 }
