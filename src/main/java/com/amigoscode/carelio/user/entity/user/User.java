@@ -2,6 +2,7 @@ package com.amigoscode.carelio.user.entity.user;
 
 import com.amigoscode.carelio.base.BaseEntity;
 import com.amigoscode.carelio.user.entity.role.UserRole;
+import com.amigoscode.carelio.worker.entity.Worker;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -36,4 +37,7 @@ public class User extends BaseEntity
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserRole> userRoles;
+
+    @OneToOne(mappedBy = "user")
+    private Worker worker;
 }

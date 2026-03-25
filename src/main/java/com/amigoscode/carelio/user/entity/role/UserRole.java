@@ -1,5 +1,6 @@
 package com.amigoscode.carelio.user.entity.role;
 
+import com.amigoscode.carelio.base.BaseEntity;
 import com.amigoscode.carelio.user.entity.user.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -12,11 +13,8 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserRole
+public class UserRole extends BaseEntity
 {
-    @EmbeddedId
-    private UserRoleId id;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("userId")
     @JoinColumn(name = "user_id", nullable = false)
