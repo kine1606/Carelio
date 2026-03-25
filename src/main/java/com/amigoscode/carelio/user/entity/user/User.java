@@ -40,4 +40,7 @@ public class User extends BaseEntity
 
     @OneToOne(mappedBy = "user")
     private Worker worker;
+
+    @OneToMany(mappedBy = "user")
+    private List<UserAddressInformation>  userAddressInformations;
 }

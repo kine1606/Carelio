@@ -22,15 +22,10 @@ import java.util.Set;
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(
-        name = "worker_profile",
-        uniqueConstraints = {@UniqueConstraint(
-                name = "uk_user_id",
-                columnNames = {"user_id"}
-        )})
+@Table(name = "worker_profile")
 public class Worker extends BaseEntity
 {
-    @OneToOne(cascade = CascadeType.ALL)
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
@@ -46,6 +41,9 @@ public class Worker extends BaseEntity
 
     private String bio;
 
-    @OneToMany(mappedBy = "worker")
+    @OneToMany(mappedBy = "worker", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<WorkerSkill> workerSkills;
+
+    @OneToOne(mappedBy = "assignedWorker")
+    private ServiceOrder serviceOrder;
 }
