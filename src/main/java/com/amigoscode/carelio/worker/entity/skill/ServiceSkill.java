@@ -21,5 +21,5 @@ public class ServiceSkill extends BaseEntity
     private ServiceSkillCode serviceSkillCode;
 
     @OneToMany(mappedBy = "serviceSkill")
-    private Set<ServiceSkill> serviceSkills;
+    private Set<WorkerSkill> workerSkills;
 }

@@ -8,7 +8,10 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user_roles")
+@Table(name = "user_roles",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"user_id", "role_id"})
+        })
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,12 +19,10 @@ import java.time.LocalDateTime;
 public class UserRole extends BaseEntity
 {
     @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("userId")
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("roleId")
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
