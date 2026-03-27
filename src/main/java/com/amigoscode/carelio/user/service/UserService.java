@@ -36,12 +36,13 @@ public class UserService {
     {
         if(userRepository.existsByEmail(res.getEmail()))
         {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "username already exists");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "email already exists");
         }
         if(userRepository.existsByUsername(res.getUsername()))
         {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "username already exists");
         }
+
         User user = userMapper.toEntity(res);
         user.setUserStatus(UserStatus.ACTIVE);
         return userRepository.save(user);

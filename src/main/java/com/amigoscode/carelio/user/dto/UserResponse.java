@@ -15,7 +15,7 @@ import java.util.List;
         "id",
         "username",
         "userStatus",
-        "roleCodes",
+        "userRoles",
         "createdAt",
         "updatedAt"
 })
@@ -27,5 +27,5 @@ public class UserResponse extends BaseResponse
 {
     private String username;
     private UserStatus userStatus;
-    private List<RoleCode> roleCodes;
+    private List<UserRoleResponse> userRoles;
 }

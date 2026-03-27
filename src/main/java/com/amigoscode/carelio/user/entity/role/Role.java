@@ -12,10 +12,14 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Role extends BaseEntity
+public class Role
 {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
     @Enumerated(EnumType.STRING)
-    @Column(name = "code", nullable = false)
+    @Column(name = "role_code", nullable = false)
     private RoleCode roleCode;
 
     @OneToMany(mappedBy = "role",cascade = CascadeType.ALL, orphanRemoval = true)
