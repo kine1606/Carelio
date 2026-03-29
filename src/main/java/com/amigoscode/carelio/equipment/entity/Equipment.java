@@ -2,13 +2,11 @@ package com.amigoscode.carelio.equipment.entity;
 
 import com.amigoscode.carelio.base.BaseEntity;
 import com.amigoscode.carelio.room.entity.Room;
+import com.amigoscode.carelio.serviceOrder.entity.ServiceOrder;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UpdateTimestamp;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
 
-import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "equipment")
@@ -21,19 +19,23 @@ import java.time.LocalDateTime;
 public class Equipment extends BaseEntity
 {
 
-    @Column(nullable = false)
+    @Column(name = "name")
     private String name;
 
+    @Column(name = "brand")
     private String brand;
+
+    @Column(name = "model")
     private String model;
+    @Column(name = "serial_number")
     private String serialNumber;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "status", nullable = false)
     private EquipmentStatus status;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "condition_status", nullable = false)
     private EquipmentConditionStatus conditionStatus;
 
     @ManyToOne
@@ -43,4 +45,7 @@ public class Equipment extends BaseEntity
     @ManyToOne
     @JoinColumn(name = "equipment_category_id", nullable = false)
     private EquipmentCategory equipmentCategory;
+
+    @OneToMany(mappedBy = "equipment")
+    private List<ServiceOrder> serviceOrders;
 }

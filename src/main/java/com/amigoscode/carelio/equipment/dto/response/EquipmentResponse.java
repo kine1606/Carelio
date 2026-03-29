@@ -1,19 +1,27 @@
-package com.amigoscode.carelio.equipment.dto;
+package com.amigoscode.carelio.equipment.dto.response;
 
-import com.amigoscode.carelio.base.BaseEntity;
 import com.amigoscode.carelio.base.BaseResponse;
-import com.amigoscode.carelio.equipment.entity.Equipment;
 import com.amigoscode.carelio.equipment.entity.EquipmentConditionStatus;
 import com.amigoscode.carelio.equipment.entity.EquipmentStatus;
-import jakarta.persistence.Id;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import com.amigoscode.carelio.room.dto.RoomSummaryResponse;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.*;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonPropertyOrder({
+        "id",
+        "name",
+        "brand",
+        "model",
+        "serialNumber",
+        "status",
+        "conditionStatus",
+        "room",
+        "equipmentCategory",
+})
 public class EquipmentResponse extends BaseResponse {
 
     private String name;
@@ -24,9 +32,7 @@ public class EquipmentResponse extends BaseResponse {
     private EquipmentStatus status;
     private EquipmentConditionStatus conditionStatus;
 
-    private Long roomId;
-    private String roomName;
+    private RoomSummaryResponse room;
 
-    private Long equipmentCategoryId;
-    private String equipmentCategoryName;
+    private EquipmentCategorySummaryResponse equipmentCategory;
 }

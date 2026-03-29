@@ -21,11 +21,13 @@ public class EquipmentCategoryController
     {
         return equipmentCategoryService.getAll();
     }
+
     @GetMapping("/{id}")
     public EquipmentCategory getById(@PathVariable Long id)
     {
         return equipmentCategoryService.getById(id);
     }
+
     @PostMapping
     public EquipmentCategory create(EquipmentCategory equipmentCategory)
     {

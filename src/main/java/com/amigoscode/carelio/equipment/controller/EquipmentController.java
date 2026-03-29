@@ -1,12 +1,9 @@
 package com.amigoscode.carelio.equipment.controller;
 
-import com.amigoscode.carelio.equipment.dto.CreateEquipmentSimpleRequest;
-import com.amigoscode.carelio.equipment.dto.EquipmentResponse;
-import com.amigoscode.carelio.equipment.dto.EquipmentSimpleResponse;
-import com.amigoscode.carelio.equipment.dto.UpdateEquipmentRequest;
-import com.amigoscode.carelio.equipment.entity.Equipment;
+import com.amigoscode.carelio.equipment.dto.request.CreateEquipmentSimpleRequest;
+import com.amigoscode.carelio.equipment.dto.response.EquipmentResponse;
+import com.amigoscode.carelio.equipment.dto.request.UpdateEquipmentRequest;
 import com.amigoscode.carelio.equipment.mapper.EquipmentMapper;
-import com.amigoscode.carelio.equipment.repository.EquipmentRepository;
 import com.amigoscode.carelio.equipment.service.EquipmentService;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,28 +24,29 @@ public class EquipmentController
     }
 
     @GetMapping
-    public List<Equipment> getEquipments()
+    public List<EquipmentResponse> getEquipments()
     {
-        return equipmentService.getAll();
+        return equipmentMapper.toResponseList(equipmentService.getAll());
     }
 
     @GetMapping("/{id}")
-    public EquipmentSimpleResponse getEquipmentById(@PathVariable Long id)
+    public EquipmentResponse getEquipmentById(@PathVariable Long id)
     {
         return equipmentMapper.toResponse(equipmentService.getById(id));
     }
     @PostMapping
-    public EquipmentSimpleResponse create(@RequestBody CreateEquipmentSimpleRequest res)
+    public EquipmentResponse create(@RequestBody CreateEquipmentSimpleRequest res)
     {
         return equipmentMapper.toResponse(equipmentService.create(res));
     }
 
     @PatchMapping("/{id}")
-    public EquipmentSimpleResponse update(@PathVariable Long id,
-                                          @RequestBody UpdateEquipmentRequest res)
+    public EquipmentResponse update(@PathVariable Long id,
+                                    @RequestBody UpdateEquipmentRequest res)
     {
-        return equipmentMapper.toResponse(equipmentService.update(id,res));
+        return equipmentMapper.toResponse(equipmentService.update(id, res));
     }
+
     // not done
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id)

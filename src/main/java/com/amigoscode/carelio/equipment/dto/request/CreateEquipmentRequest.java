@@ -1,4 +1,4 @@
-package com.amigoscode.carelio.equipment.dto;
+package com.amigoscode.carelio.equipment.dto.request;
 
 import com.amigoscode.carelio.equipment.entity.EquipmentConditionStatus;
 import com.amigoscode.carelio.equipment.entity.EquipmentStatus;
@@ -11,7 +11,8 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class UpdateEquipmentRequest
+
+public class CreateEquipmentRequest
 {
     @NotBlank(message = "Name is required")
     private String name;

@@ -1,4 +1,4 @@
-package com.amigoscode.carelio.equipment.dto;
+package com.amigoscode.carelio.equipment.dto.request;
 
 import com.amigoscode.carelio.equipment.entity.EquipmentConditionStatus;
 import com.amigoscode.carelio.equipment.entity.EquipmentStatus;
@@ -25,6 +25,6 @@ public class CreateEquipmentSimpleRequest
     @NotNull(message = "Room id is required")
     private Long roomId;
 
-//    @NotNull(message = "Equipment category id is required")
-//    private Long equipmentCategoryId;
+    @NotNull(message = "Equipment category id is required")
+    private Long equipmentCategoryId;
 }
