@@ -17,7 +17,6 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RoomResponse extends BaseResponse {
-
     private String name;
     private String description;
     private Integer floor;

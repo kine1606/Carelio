@@ -49,9 +49,8 @@ public class RoomController {
         return roomMapper.toResponse(roomService.update(id, request));
     }
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id)
+    public RoomResponse delete(@PathVariable Long id)
     {
-        roomService.delete(id);
-        return ResponseEntity.noContent().build();
+       return roomMapper.toResponse(roomService.softDelete(id));
     }
 }
