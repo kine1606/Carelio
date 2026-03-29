@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.amigoscode.carelio.room.entity.Room;
 import com.amigoscode.carelio.room.repository.RoomRepository;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import java.time.LocalDateTime;
@@ -15,6 +16,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class RoomService
 {
 
@@ -32,13 +34,14 @@ public class RoomService
                 .orElseThrow(() -> new RuntimeException("Room not found"));
     }
 
+    @Transactional
     public Room create(CreateRoomRequest request)
     {
         Room room = roomMapper.toEntity(request);
         room.setCreatedAt(LocalDateTime.now());
         return roomRepository.save(room);
     }
-
+    @Transactional
     public Room softDelete(Long id)
     {
         Room room = getById(id);
@@ -50,12 +53,14 @@ public class RoomService
         return roomRepository.save(room);
     }
 
-    public Room update(Long id, UpdateRoomRequest request)
+    @Transactional
+    public Room update(Long id, UpdateRoomRequest req)
     {
         Room room = getById(id);
-        room.setName(request.getName());
-        room.setDescription(request.getDescription());
-        room.setFloor(request.getFloor());
+
+        if (req.getName() != null) room.setName(req.getName());
+        if (req.getDescription() != null) room.setDescription(req.getDescription());
+        if (req.getFloor() != null) room.setFloor(req.getFloor());
 
         room.setUpdatedAt(LocalDateTime.now());
         return roomRepository.save(room);
