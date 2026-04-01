@@ -15,6 +15,7 @@ import java.util.List;
 @JsonPropertyOrder({
         "id",
         "username",
+        "fullName",
         "userStatus",
         "userRoles",
         "createdAt",
@@ -27,6 +28,7 @@ import java.util.List;
 public class UserResponse extends BaseResponse
 {
     private String username;
+    private String fullName;
     private UserStatus userStatus;
 
     private List<UserRoleResponse> userRoles;

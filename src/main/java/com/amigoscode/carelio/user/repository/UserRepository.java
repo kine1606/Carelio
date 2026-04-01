@@ -19,4 +19,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findAllByDeletedFalse();
 
+    boolean existsByPhoneNumber(String phoneNumber);
 }

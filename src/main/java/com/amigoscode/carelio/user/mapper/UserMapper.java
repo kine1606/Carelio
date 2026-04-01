@@ -1,7 +1,5 @@
 package com.amigoscode.carelio.user.mapper;
 
-import com.amigoscode.carelio.equipment.dto.UpdateEquipmentRequest;
-import com.amigoscode.carelio.equipment.entity.Equipment;
 import com.amigoscode.carelio.user.dto.CreateUserRequest;
 import com.amigoscode.carelio.user.dto.UpdateUserRequest;
 import com.amigoscode.carelio.user.dto.UserResponse;

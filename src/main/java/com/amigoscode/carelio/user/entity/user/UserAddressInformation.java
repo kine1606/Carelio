@@ -1,12 +1,14 @@
 package com.amigoscode.carelio.user.entity.user;
 
 import com.amigoscode.carelio.base.BaseEntity;
-import com.amigoscode.carelio.service_order.entity.ServiceOrder;
+import com.amigoscode.carelio.serviceOrder.entity.ServiceOrder;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.List;
 
 @Getter
 @Setter
@@ -20,20 +22,24 @@ public class UserAddressInformation extends BaseEntity
     @JoinColumn(name = "user_id")
     private User user;
 
-    @Column(name = "ward")
-    private String ward;
+    @Column(name = "contact_name", nullable = false)
+    private String contactName;
 
-    @Column(name = "district", nullable = false)
-    private String district;
+    @Column(name = "phone_number", nullable = false)
+    private String phoneNumber;
+
+    @Column(name = "address_line", nullable = false)
+    private String addressLine;
 
     @Column(name = "city", nullable = false)
     private String city;
 
+    @Column(name = "is_default")
     private boolean isDefault;
 
-    //temporary field
-    private String timeAvailability;
+    @Column(name = "is_active")
+    private boolean isActive;
 
-    @OneToOne(mappedBy = "userAddressInformation")
-    private ServiceOrder serviceOrder;
+    @OneToMany(mappedBy = "userAddressInformation")
+    private List<ServiceOrder> serviceOrders;
 }

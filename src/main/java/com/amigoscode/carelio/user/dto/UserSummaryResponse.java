@@ -1,16 +1,16 @@
 package com.amigoscode.carelio.user.dto;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class UpdateUserRequest
+public class UserSummaryResponse
 {
     private String username;
     private String fullName;
-    private String avtUrl;
-    private String phoneNumber;
 }

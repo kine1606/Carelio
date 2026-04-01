@@ -25,6 +25,9 @@ public class User extends BaseEntity
     @Column(name = "username", unique = true, nullable = false)
     private String username;
 
+    @Column(name = "fullname", nullable = false)
+    private String fullName;
+
     @Column(name = "avatar_url")
     private String avtUrl;
 
