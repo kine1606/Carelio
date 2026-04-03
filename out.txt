@@ -1,0 +1,3161 @@
+==========./REVIEW.md
+# Carelio (kine) Code Review
+
+## Overall Score: 3/10
+
+This is an early-stage learning project with a reasonable package layout, but it has confirmed compile errors, data-losing bugs, zero security, hardcoded credentials committed, and no meaningful tests. It is not production-ready.
+
+---
+
+## What's Good
+
+- **Layered package structure**: Controller -> Service -> Repository -> Entity with DTOs and MapStruct mappers. Correct idea.
+- **Soft delete pattern** attempted via `BaseEntity.deleted` flag.
+- **Validation annotations** on some request DTOs (`@NotBlank`, `@Email`).
+- **Duplicate checks** on user creation (email/username).
+- **springdoc/Swagger** integrated for API documentation.
+- **Maven wrapper** included for reproducible builds.
+
+---
+
+## Critical Bugs (will crash or lose data)
+
+### BUG 1: `Equipment.java` does not compile
+
+`Equipment.java` imports `com.amigoscode.carelio.serviceOrder.entity.ServiceOrder` but the actual package is `com.amigoscode.carelio.service_order.entity`. The project will not compile. `UserAddressInformation.java` and `Worker.java` use the correct import.
+
+### BUG 2: `EquipmentService.delete()` does not persist the soft delete
+
+```java
+@Transactional
+public void delete(Long id) {
+    Equipment equipment = getById(id);
+    equipment.setDeleted(true);
+    equipment.setUpdatedAt(LocalDateTime.now());
+    // Missing: equipmentRepository.save(equipment)
+}
+```
+
+The entity is fetched, mutated in memory, and discarded. The `getById()` call goes through a class-level `readOnly = true` method, making dirty-checking unreliable. The delete silently does nothing.
+
+### BUG 3: `EquipmentCategoryService` writes inside `readOnly = true`
+
+The class is annotated `@Transactional(readOnly = true)` but `create()`, `update()`, and `delete()` methods have no `@Transactional` override. Writes will either silently fail or throw depending on the driver/DB config.
+
+### BUG 4: `EquipmentCategoryController` has no URL path
+
+```java
+@RestController("/equipment-category")   // This sets the bean name, NOT the URL
+@RequestMapping                          // Empty = maps to /
+```
+
+All methods map to `/`, `/{id}`, etc. This collides with other controllers. Should be `@RequestMapping("/equipment-categories")`.
+
+### BUG 5: JPA relationship cardinality mismatches
+
+- **Worker <-> ServiceOrder**: `ServiceOrder` has `@ManyToOne` to `Worker` (many orders per worker), but `Worker` has `@OneToOne(mappedBy = "assignedWorker")`. Should be `@OneToMany`.
+- **UserAddressInformation <-> ServiceOrder**: `ServiceOrder` has `@ManyToOne` to address, but `UserAddressInformation` has `@OneToOne(mappedBy = ...)`. Should be `@OneToMany`.
+
+---
+
+## Security Flaws
+
+### SEC 1: Hardcoded database credentials in version control
+
+```properties
+spring.datasource.username=postgres
+spring.datasource.password=123456
+```
+
+Credentials must never be committed. Use environment variables or Spring profiles with externalized secrets.
+
+### SEC 2: No authentication or authorization
+
+No Spring Security dependency, no filters, no token validation. Every endpoint is wide open: anyone can create users, assign admin roles, delete rooms.
+
+### SEC 3: `grantedBy` is a user-supplied query param with no verification
+
+The role assignment endpoint takes `grantedBy` as a raw `Long` query parameter. No check that the caller is actually that user or has permission to grant roles. IDOR / privilege escalation vector.
+
+### SEC 4: `create-drop` DDL strategy
+
+```properties
+spring.jpa.hibernate.ddl-auto=create-drop
+```
+
+Drops and recreates the entire database schema every time the app restarts. All data is destroyed.
+
+---
+
+## Database Design Flaws
+
+| # | Issue |
+|---|-------|
+| 1 | `Room` has no owner/user FK. Rooms are globally shared, contradicts "household equipment management" domain. |
+| 2 | No `household` or `property` entity for a "household equipment" app. |
+| 3 | `ServiceOrder` has no `customer_id`. Ownership only via address (indirect and wrong). |
+| 4 | `UserAuthProvider` is an orphan entity. No FK to `User`. Completely disconnected. |
+| 5 | `user_roles` join table inherits `BaseEntity` (PK, soft-delete, audit). Over-engineered for a join table. |
+| 6 | `Role` doesn't extend `BaseEntity`. Inconsistent with every other entity. |
+| 7 | `BaseEntity.deleted` is `Boolean` (nullable object type) instead of `boolean` (primitive). `findAllByDeletedFalse` misses records where `deleted` is NULL. |
+| 8 | Soft delete on `worker_skill`, `service_skill`, `equipment_category` makes no business sense. |
+| 9 | Worker-ServiceOrder cardinality mismatch (`@OneToOne` vs `@ManyToOne`). |
+| 10 | Address-ServiceOrder cardinality mismatch (`@OneToOne` vs `@ManyToOne`). |
+| 11 | `worker_profile.payment_method` naming collision with `Payment.paymentMethod`. |
+| 12 | No indexes beyond PKs and the few unique constraints. |
+
+---
+
+## Layering and Architecture Flaws
+
+| # | Issue |
+|---|-------|
+| 1 | Controllers inject both Service and Mapper. Service should return DTOs, not raw entities. |
+| 2 | `EquipmentCategoryController` returns raw JPA entities. No DTO separation. |
+| 3 | Mapper `updateEntity()` methods exist but are never used. Services do manual field-by-field patching. |
+| 4 | No `@Valid` on any `@RequestBody`. All validation annotations are dead code. |
+| 5 | Stray cross-module imports: user DTOs import equipment types, user mapper imports equipment classes. |
+| 6 | `@PathVariable` web annotation imported in `RoomService` (service layer). |
+| 7 | `EquipmentCategoryController.create()` and `update()` missing `@RequestBody`. Spring binds from query params, not JSON body. |
+| 8 | Duplicate MapStruct bean registration: both `@Mapper(componentModel="spring")` AND manual `Mappers.getMapper()` in `MapperBean.java`. |
+| 9 | No `@ControllerAdvice`. `RuntimeException` becomes HTTP 500 everywhere. |
+| 10 | Inconsistent exception types: `ResponseStatusException` in one place, `RuntimeException` in all others. |
+| 11 | `UserService` has no `@Transactional` at class level while `RoomService` and `EquipmentService` do. Inconsistent. |
+| 12 | Manual `setCreatedAt(LocalDateTime.now())` in services despite `@CreatedDate` + `@EnableJpaAuditing`. |
+| 13 | `UpdateUserRequest` has no Lombok annotations. Private fields with no accessors. Jackson can't deserialize. |
+| 14 | `UpdateRoomRequest` has `@NotBlank` on `name`. Breaks PATCH semantics where all fields should be optional. |
+| 15 | Dead code: `CreateEquipmentRequest` exists but is never used anywhere. |
+| 16 | Dead code: `UserMapper.updateEntity()` exists but no update endpoint calls it. |
+| 17 | Unused import: `org.apache.coyote.BadRequestException` in `UserService`. |
+
+---
+
+## Business Logic Gaps
+
+| # | Issue |
+|---|-------|
+| 1 | Core domain (service orders, workers, payments) is 0% implemented. Only entity shells exist. |
+| 2 | No authentication. `User` has no password field, no login flow. |
+| 3 | No user update endpoint despite `UpdateUserRequest` existing. |
+| 4 | No way to remove a role from a user. |
+| 5 | No worker management API. |
+| 6 | No address management API. |
+| 7 | `grantedBy` is unverified. Privilege escalation possible. |
+| 8 | Equipment creation requires caller to know internal IDs for room and category. No lookup by name. |
+| 9 | No pagination on any list endpoint. Will blow up with real data. |
+| 10 | No search or filter on any endpoint. |
+| 11 | Equipment delete endpoint is marked `// not done`. |
+| 12 | Category controller comment says `// not that good`. |
+
+---
+
+## Testing: Effectively Zero
+
+- 1 test file with 1 empty test (`contextLoads`). Doesn't even work without a running PostgreSQL.
+- 0 unit tests for any service, mapper, or controller.
+- 0 integration tests.
+- No test configuration (`application-test.properties`, H2 for tests, Testcontainers, etc.).
+
+---
+
+## Operations and DevOps: Non-existent
+
+- No CI/CD pipeline.
+- No Dockerfile or docker-compose.
+- No environment profile separation.
+- No database migration tool (Flyway/Liquibase). Schema is Hibernate-generated and dropped on restart.
+- No logging configuration beyond `show-sql=true`.
+
+---
+
+## Score Breakdown
+
+| Category | Score | Notes |
+|----------|-------|-------|
+| Correctness | 1/10 | Compile error, data-losing bugs, wrong mappings |
+| Security | 0/10 | Hardcoded creds, no auth, IDOR, create-drop |
+| Architecture | 4/10 | Right layering pattern, but inconsistent and incomplete |
+| Testing | 0/10 | One empty test |
+| Code Quality | 3/10 | Stray imports, inconsistent error handling, missing annotations |
+| DevOps/Ops | 0/10 | Nothing |
+| Documentation | 1/10 | 2-line README, Swagger is the only saving grace |
+| Completeness | 2/10 | Half the domain is entity-only, several endpoints broken |
+| **Overall** | **3/10** | Early prototype with fundamental issues |
+==========./v2/REVIEW.md
+# Carelio v2 Code Review
+
+## Overall Score: 7/10
+
+A solid improvement over v1, with all 6 domains fully implemented, correct layering, proper error handling, and no compile errors. However, it still lacks authentication, tests, and several production concerns.
+
+---
+
+## What's Good (improvements over v1)
+
+### Architecture (was 4/10, now 8/10)
+
+- **Service returns DTOs, not entities.** Controllers are thin and only know about DTOs. The mapper lives in the service layer where it belongs.
+- **Global `@ControllerAdvice`** handles all exceptions with proper HTTP status codes: 404 for not found, 409 for duplicates, 422 for business rules, 400 for validation errors.
+- **Custom exception hierarchy** (`ResourceNotFoundException`, `DuplicateResourceException`, `BusinessRuleException`) replaces scattered `RuntimeException` throws.
+- **Consistent `@Transactional` usage**: class-level `readOnly = true` with `@Transactional` overrides on write methods. Every service follows this pattern.
+- **`@Valid` on every `@RequestBody`** — validation annotations actually fire.
+- **No duplicate MapStruct beans** — `componentModel = "spring"` only, no manual `Mappers.getMapper()`.
+- **No stray imports** — no cross-module import leaks.
+- **All `@RequestMapping` paths are correct** — no bean-name-as-path mistakes.
+- **All `@RequestBody` annotations present** where needed.
+- **All `save()` calls present** — soft delete actually persists.
+
+### Database Design (was 3/10, now 7/10)
+
+- **`Room` has an `owner_id` FK** to `User` — rooms belong to a specific user/household.
+- **`ServiceOrder` has a `customer_id` FK** — direct ownership, not indirect via address.
+- **`UserAuthProvider` has a `user_id` FK** — properly connected to the user.
+- **Roles as `@ElementCollection`** — no over-engineered `Role` entity for 3 enum values.
+- **`BaseEntity.deleted` is `boolean` (primitive)** — no null ambiguity.
+- **`EquipmentCategory` is a standalone entity without `BaseEntity`** — reference data doesn't need soft delete or audit timestamps.
+- **`WorkerSkill` is a standalone entity without `BaseEntity`** — join table with no soft delete.
+- **Correct JPA cardinalities** — `ServiceOrder` has `@ManyToOne` to Worker, and Worker doesn't declare the inverse (avoids the OneToOne vs OneToMany mismatch).
+- **Consistent `findByIdAndDeletedFalse`** — soft-delete is respected on both list and get-by-id queries.
+
+### Business Logic (was 1/10, now 7/10)
+
+- **All 6 domains are fully implemented** with REST endpoints: User, Room, Equipment, Worker, ServiceOrder, Payment.
+- **Full repair workflow**: create order (PENDING) -> assign worker (ASSIGNED) -> start work (IN_PROGRESS) -> complete or cancel.
+- **Status transition validation** with a state machine in `ServiceOrderService.validateTransition()`.
+- **Worker availability management** — worker goes BUSY when assigned, AVAILABLE when order completes/cancels.
+- **Job counter** increments on order completion.
+- **Pagination** on all list endpoints via `Pageable`.
+- **Filter endpoints**: by room, by category, by owner, by customer, by worker, by status.
+- **Address management API** — users can add addresses.
+- **Role management** — add and remove roles from users.
+- **Worker skill management** — add and remove skills with duplicate detection.
+- **Duplicate detection** on user email/username, category name, transaction reference.
+- **Business rule guards**: can't delete room with equipment, can't delete category with equipment, can't assign worker to completed order, can't pay for cancelled order.
+
+### Configuration (was 0/10, now 6/10)
+
+- **No hardcoded credentials** — uses `${DB_URL}`, `${DB_USER}`, `${DB_PASSWORD}` env vars.
+- **Profile separation** — `application.properties` (shared) + `application-dev.properties` (local dev defaults).
+- **`ddl-auto=update`** instead of `create-drop` — data survives restarts.
+- **`show-sql` only in dev profile**.
+
+---
+
+## What's Still Missing (honest flaws)
+
+### Security: 0/10 (unchanged)
+
+- **No Spring Security.** All endpoints are still wide open. Anyone can create users, assign admin roles, delete orders, and process payments.
+- **No authentication mechanism** — no JWT, no session, no OAuth2.
+- **No authorization** — no `@PreAuthorize`, no role-based access control on endpoints.
+- **`passwordHash` field exists on `User` but is never set or validated.** It's a placeholder that does nothing.
+- **No CORS configuration.**
+- This is the single biggest gap. Without auth, none of the business logic access controls matter.
+
+### Testing: 0/10 (unchanged)
+
+- **Still only one empty `contextLoads` test.** Zero unit tests for services, mappers, controllers. Zero integration tests.
+- **No test configuration** — no H2 in-memory database for tests, no Testcontainers, no `application-test.properties`.
+- **No MockMvc tests** for controllers.
+- **Business logic like `validateTransition()` is critical and completely untested.**
+
+### DevOps: 1/10
+
+- **No CI/CD pipeline.**
+- **No Dockerfile or docker-compose.**
+- **No database migration tool** — Hibernate `ddl-auto=update` is better than `create-drop` but is not production-grade. Column renames, data migrations, and rollbacks require Flyway or Liquibase.
+
+### API Design Gaps
+
+- **No API versioning** — paths are `/api/...` but no `/api/v1/...` prefix for future evolution.
+- **No rate limiting.**
+- **No request/response logging or correlation IDs.**
+- **Payment is simplistic** — marks as COMPLETED immediately on creation. Real payments need async processing, webhook callbacks, idempotency keys.
+- **No search by name/keyword** on any entity — only filter by ID or enum.
+- **`EquipmentCategory` list is not paginated** — will be a problem if categories grow (unlikely but inconsistent with the rest).
+- **Multiple `@GetMapping` with `params =` on the same controller** could cause ambiguity if a client sends multiple query params simultaneously.
+
+### Data Integrity Concerns
+
+- **No database-level indexes** beyond PKs and unique constraints. Queries like `findAllByCustomerIdAndDeletedFalse` will table-scan without an index on `(customer_id, deleted)`.
+- **No optimistic locking** (`@Version`) — concurrent updates will silently overwrite each other.
+- **`UserAddress` has soft delete** but addresses are looked up by `findById` (without deleted check) in `ServiceOrderService.create()` — inconsistent.
+- **Cascade on `User.addresses` is `ALL` with `orphanRemoval`** — deleting a user hard-deletes their addresses, which may still be referenced by service orders.
+
+### Code Structure
+
+- **Cross-module service dependencies** are deep: `ServiceOrderService` depends on `UserService`, `EquipmentService`, `WorkerService`, and `UserAddressRepository`. This creates a wide fan-out. In a larger codebase, this should be mediated through events or a facade.
+- **No DTO for detailed views** — e.g., getting a room doesn't include its equipment list (only a count). Getting a user doesn't include their addresses. Some endpoints may want richer responses.
+
+---
+
+## Score Breakdown
+
+| Category | v1 | v2 | Notes |
+|----------|-----|-----|-------|
+| Correctness | 1/10 | 8/10 | No compile errors, all CRUD works, correct JPA mappings |
+| Security | 0/10 | 0/10 | Still completely open — biggest remaining gap |
+| Architecture | 4/10 | 8/10 | Clean layering, proper exceptions, consistent patterns |
+| Testing | 0/10 | 0/10 | Still nothing beyond contextLoads |
+| Code Quality | 3/10 | 8/10 | No stray imports, consistent style, no dead code |
+| DevOps/Ops | 0/10 | 1/10 | Profile separation only |
+| Business Logic | 1/10 | 7/10 | Full workflow, state machine, guards |
+| DB Design | 3/10 | 7/10 | Correct FKs, proper cardinalities, clean schema |
+| **Overall** | **3/10** | **7/10** | Good backend skeleton, needs auth and tests to be real |
+
+---
+
+## What to Do Next (priority order)
+
+1. **Add Spring Security + JWT authentication** — this unlocks actual access control.
+2. **Write tests** — unit tests for services (especially `validateTransition`, duplicate checks, business rules), MockMvc for controllers.
+3. **Add `@Version` for optimistic locking** on entities that support concurrent updates.
+4. **Add database indexes** on commonly queried FK columns.
+5. **Fix `UserAddress` soft-delete inconsistency** in `ServiceOrderService`.
+6. **Add Flyway** for schema migrations.
+7. **Add Dockerfile + docker-compose** for local development.
+8. **Add CI pipeline** (GitHub Actions or similar).
+==========./v2/pom.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.0.3</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.carelio</groupId>
+    <artifactId>carelio</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>Carelio</name>
+    <description>Household equipment management and repair service platform</description>
+
+    <properties>
+        <java.version>17</java.version>
+        <mapstruct.version>1.5.5.Final</mapstruct.version>
+        <lombok.version>1.18.38</lombok.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>3.0.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok-mapstruct-binding</artifactId>
+                            <version>0.2.0</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+==========./v2/src/main/java/com/carelio/CarelioApplication.java
+package com.carelio;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+
+@SpringBootApplication
+@EnableJpaAuditing
+public class CarelioApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(CarelioApplication.class, args);
+    }
+}
+==========./v2/src/main/java/com/carelio/common/BaseEntity.java
+package com.carelio.common;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.LocalDateTime;
+
+@MappedSuperclass
+@Getter
+@Setter
+@EntityListeners(AuditingEntityListener.class)
+public abstract class BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @CreatedDate
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    private LocalDateTime updatedAt;
+
+    private boolean deleted = false;
+}
+==========./v2/src/main/java/com/carelio/common/PageResponse.java
+package com.carelio.common;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import org.springframework.data.domain.Page;
+
+import java.util.List;
+
+@Getter
+@AllArgsConstructor
+public class PageResponse<T> {
+
+    private final List<T> content;
+    private final int page;
+    private final int size;
+    private final long totalElements;
+    private final int totalPages;
+    private final boolean last;
+
+    public static <T> PageResponse<T> of(Page<?> page, List<T> content) {
+        return new PageResponse<>(
+                content,
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isLast()
+        );
+    }
+}
+==========./v2/src/main/java/com/carelio/common/exception/BusinessRuleException.java
+package com.carelio.common.exception;
+
+public class BusinessRuleException extends RuntimeException {
+
+    public BusinessRuleException(String message) {
+        super(message);
+    }
+}
+==========./v2/src/main/java/com/carelio/common/exception/DuplicateResourceException.java
+package com.carelio.common.exception;
+
+public class DuplicateResourceException extends RuntimeException {
+
+    public DuplicateResourceException(String message) {
+        super(message);
+    }
+}
+==========./v2/src/main/java/com/carelio/common/exception/GlobalExceptionHandler.java
+package com.carelio.common.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicate(DuplicateResourceException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(BusinessRuleException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessRule(BusinessRuleException ex) {
+        return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
+        Map<String, String> fieldErrors = new HashMap<>();
+        for (FieldError error : ex.getBindingResult().getFieldErrors()) {
+            fieldErrors.put(error.getField(), error.getDefaultMessage());
+        }
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("errors", fieldErrors);
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String message) {
+        ErrorResponse body = new ErrorResponse(
+                LocalDateTime.now(),
+                status.value(),
+                status.getReasonPhrase(),
+                message
+        );
+        return ResponseEntity.status(status).body(body);
+    }
+
+    public record ErrorResponse(LocalDateTime timestamp, int status, String error, String message) {}
+}
+==========./v2/src/main/java/com/carelio/common/exception/ResourceNotFoundException.java
+package com.carelio.common.exception;
+
+public class ResourceNotFoundException extends RuntimeException {
+
+    public ResourceNotFoundException(String resource, Long id) {
+        super(resource + " not found with id: " + id);
+    }
+}
+==========./v2/src/main/java/com/carelio/equipment/controller/EquipmentCategoryController.java
+package com.carelio.equipment.controller;
+
+import com.carelio.equipment.dto.EquipmentCategoryRequest;
+import com.carelio.equipment.dto.EquipmentCategoryResponse;
+import com.carelio.equipment.service.EquipmentCategoryService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/equipment-categories")
+@RequiredArgsConstructor
+public class EquipmentCategoryController {
+
+    private final EquipmentCategoryService categoryService;
+
+    @GetMapping
+    public List<EquipmentCategoryResponse> getAll() {
+        return categoryService.getAll();
+    }
+
+    @GetMapping("/{id}")
+    public EquipmentCategoryResponse getById(@PathVariable Long id) {
+        return categoryService.getById(id);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public EquipmentCategoryResponse create(@Valid @RequestBody EquipmentCategoryRequest request) {
+        return categoryService.create(request);
+    }
+
+    @PutMapping("/{id}")
+    public EquipmentCategoryResponse update(
+            @PathVariable Long id,
+            @Valid @RequestBody EquipmentCategoryRequest request) {
+        return categoryService.update(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id) {
+        categoryService.delete(id);
+    }
+}
+==========./v2/src/main/java/com/carelio/equipment/controller/EquipmentController.java
+package com.carelio.equipment.controller;
+
+import com.carelio.common.PageResponse;
+import com.carelio.equipment.dto.CreateEquipmentRequest;
+import com.carelio.equipment.dto.EquipmentResponse;
+import com.carelio.equipment.dto.UpdateEquipmentRequest;
+import com.carelio.equipment.service.EquipmentService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/equipment")
+@RequiredArgsConstructor
+public class EquipmentController {
+
+    private final EquipmentService equipmentService;
+
+    @GetMapping
+    public PageResponse<EquipmentResponse> getAll(Pageable pageable) {
+        return equipmentService.getAll(pageable);
+    }
+
+    @GetMapping(params = "roomId")
+    public PageResponse<EquipmentResponse> getByRoom(
+            @RequestParam Long roomId, Pageable pageable) {
+        return equipmentService.getByRoom(roomId, pageable);
+    }
+
+    @GetMapping(params = "categoryId")
+    public PageResponse<EquipmentResponse> getByCategory(
+            @RequestParam Long categoryId, Pageable pageable) {
+        return equipmentService.getByCategory(categoryId, pageable);
+    }
+
+    @GetMapping("/{id}")
+    public EquipmentResponse getById(@PathVariable Long id) {
+        return equipmentService.getById(id);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public EquipmentResponse create(@Valid @RequestBody CreateEquipmentRequest request) {
+        return equipmentService.create(request);
+    }
+
+    @PatchMapping("/{id}")
+    public EquipmentResponse update(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateEquipmentRequest request) {
+        return equipmentService.update(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id) {
+        equipmentService.softDelete(id);
+    }
+}
+==========./v2/src/main/java/com/carelio/equipment/dto/CreateEquipmentRequest.java
+package com.carelio.equipment.dto;
+
+import com.carelio.equipment.entity.EquipmentCondition;
+import com.carelio.equipment.entity.EquipmentStatus;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class CreateEquipmentRequest {
+
+    @NotBlank(message = "Name is required")
+    private String name;
+
+    private String brand;
+    private String model;
+    private String serialNumber;
+
+    @NotNull(message = "Status is required")
+    private EquipmentStatus status;
+
+    @NotNull(message = "Condition is required")
+    private EquipmentCondition condition;
+
+    @NotNull(message = "Room ID is required")
+    private Long roomId;
+
+    @NotNull(message = "Category ID is required")
+    private Long categoryId;
+}
+==========./v2/src/main/java/com/carelio/equipment/dto/EquipmentCategoryRequest.java
+package com.carelio.equipment.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class EquipmentCategoryRequest {
+
+    @NotBlank(message = "Category name is required")
+    private String name;
+
+    private String description;
+}
+==========./v2/src/main/java/com/carelio/equipment/dto/EquipmentCategoryResponse.java
+package com.carelio.equipment.dto;
+
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class EquipmentCategoryResponse {
+
+    private Long id;
+    private String name;
+    private String description;
+}
+==========./v2/src/main/java/com/carelio/equipment/dto/EquipmentResponse.java
+package com.carelio.equipment.dto;
+
+import com.carelio.equipment.entity.EquipmentCondition;
+import com.carelio.equipment.entity.EquipmentStatus;
+import lombok.*;
+
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class EquipmentResponse {
+
+    private Long id;
+    private String name;
+    private String brand;
+    private String model;
+    private String serialNumber;
+    private EquipmentStatus status;
+    private EquipmentCondition condition;
+    private Long roomId;
+    private String roomName;
+    private Long categoryId;
+    private String categoryName;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+==========./v2/src/main/java/com/carelio/equipment/dto/UpdateEquipmentRequest.java
+package com.carelio.equipment.dto;
+
+import com.carelio.equipment.entity.EquipmentCondition;
+import com.carelio.equipment.entity.EquipmentStatus;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class UpdateEquipmentRequest {
+
+    private String name;
+    private String brand;
+    private String model;
+    private String serialNumber;
+    private EquipmentStatus status;
+    private EquipmentCondition condition;
+    private Long roomId;
+    private Long categoryId;
+}
+==========./v2/src/main/java/com/carelio/equipment/entity/Equipment.java
+package com.carelio.equipment.entity;
+
+import com.carelio.common.BaseEntity;
+import com.carelio.room.entity.Room;
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "equipment")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Equipment extends BaseEntity {
+
+    @Column(nullable = false)
+    private String name;
+
+    private String brand;
+    private String model;
+
+    @Column(name = "serial_number")
+    private String serialNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private EquipmentStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "equipment_condition", nullable = false)
+    private EquipmentCondition condition;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "room_id", nullable = false)
+    private Room room;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)
+    private EquipmentCategory category;
+}
+==========./v2/src/main/java/com/carelio/equipment/entity/EquipmentCategory.java
+package com.carelio.equipment.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "equipment_categories")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class EquipmentCategory {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String name;
+
+    private String description;
+}
+==========./v2/src/main/java/com/carelio/equipment/entity/EquipmentCondition.java
+package com.carelio.equipment.entity;
+
+public enum EquipmentCondition {
+    NEW,
+    GOOD,
+    FAIR,
+    POOR,
+    BROKEN
+}
+==========./v2/src/main/java/com/carelio/equipment/entity/EquipmentStatus.java
+package com.carelio.equipment.entity;
+
+public enum EquipmentStatus {
+    ACTIVE,
+    INACTIVE,
+    UNDER_REPAIR,
+    RETIRED
+}
+==========./v2/src/main/java/com/carelio/equipment/mapper/EquipmentMapper.java
+package com.carelio.equipment.mapper;
+
+import com.carelio.equipment.dto.EquipmentCategoryResponse;
+import com.carelio.equipment.dto.EquipmentResponse;
+import com.carelio.equipment.entity.Equipment;
+import com.carelio.equipment.entity.EquipmentCategory;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+import java.util.List;
+
+@Mapper(componentModel = "spring")
+public interface EquipmentMapper {
+
+    @Mapping(target = "roomId", source = "room.id")
+    @Mapping(target = "roomName", source = "room.name")
+    @Mapping(target = "categoryId", source = "category.id")
+    @Mapping(target = "categoryName", source = "category.name")
+    EquipmentResponse toResponse(Equipment equipment);
+
+    List<EquipmentResponse> toResponseList(List<Equipment> equipments);
+
+    EquipmentCategoryResponse toCategoryResponse(EquipmentCategory category);
+
+    List<EquipmentCategoryResponse> toCategoryResponseList(List<EquipmentCategory> categories);
+}
+==========./v2/src/main/java/com/carelio/equipment/repository/EquipmentCategoryRepository.java
+package com.carelio.equipment.repository;
+
+import com.carelio.equipment.entity.EquipmentCategory;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface EquipmentCategoryRepository extends JpaRepository<EquipmentCategory, Long> {
+
+    boolean existsByName(String name);
+
+    Optional<EquipmentCategory> findByName(String name);
+}
+==========./v2/src/main/java/com/carelio/equipment/repository/EquipmentRepository.java
+package com.carelio.equipment.repository;
+
+import com.carelio.equipment.entity.Equipment;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface EquipmentRepository extends JpaRepository<Equipment, Long> {
+
+    Page<Equipment> findAllByDeletedFalse(Pageable pageable);
+
+    Page<Equipment> findAllByRoomIdAndDeletedFalse(Long roomId, Pageable pageable);
+
+    Page<Equipment> findAllByCategoryIdAndDeletedFalse(Long categoryId, Pageable pageable);
+
+    Optional<Equipment> findByIdAndDeletedFalse(Long id);
+
+    boolean existsByCategoryId(Long categoryId);
+}
+==========./v2/src/main/java/com/carelio/equipment/service/EquipmentCategoryService.java
+package com.carelio.equipment.service;
+
+import com.carelio.common.exception.BusinessRuleException;
+import com.carelio.common.exception.DuplicateResourceException;
+import com.carelio.common.exception.ResourceNotFoundException;
+import com.carelio.equipment.dto.EquipmentCategoryRequest;
+import com.carelio.equipment.dto.EquipmentCategoryResponse;
+import com.carelio.equipment.entity.EquipmentCategory;
+import com.carelio.equipment.mapper.EquipmentMapper;
+import com.carelio.equipment.repository.EquipmentCategoryRepository;
+import com.carelio.equipment.repository.EquipmentRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class EquipmentCategoryService {
+
+    private final EquipmentCategoryRepository categoryRepository;
+    private final EquipmentRepository equipmentRepository;
+    private final EquipmentMapper equipmentMapper;
+
+    public List<EquipmentCategoryResponse> getAll() {
+        return equipmentMapper.toCategoryResponseList(categoryRepository.findAll());
+    }
+
+    public EquipmentCategoryResponse getById(Long id) {
+        return equipmentMapper.toCategoryResponse(findOrThrow(id));
+    }
+
+    @Transactional
+    public EquipmentCategoryResponse create(EquipmentCategoryRequest request) {
+        if (categoryRepository.existsByName(request.getName())) {
+            throw new DuplicateResourceException("Category already exists: " + request.getName());
+        }
+        EquipmentCategory category = EquipmentCategory.builder()
+                .name(request.getName())
+                .description(request.getDescription())
+                .build();
+        return equipmentMapper.toCategoryResponse(categoryRepository.save(category));
+    }
+
+    @Transactional
+    public EquipmentCategoryResponse update(Long id, EquipmentCategoryRequest request) {
+        EquipmentCategory category = findOrThrow(id);
+        if (!category.getName().equals(request.getName())
+                && categoryRepository.existsByName(request.getName())) {
+            throw new DuplicateResourceException("Category already exists: " + request.getName());
+        }
+        category.setName(request.getName());
+        if (request.getDescription() != null) category.setDescription(request.getDescription());
+        return equipmentMapper.toCategoryResponse(categoryRepository.save(category));
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        EquipmentCategory category = findOrThrow(id);
+        if (equipmentRepository.existsByCategoryId(id)) {
+            throw new BusinessRuleException("Cannot delete category that has equipment assigned");
+        }
+        categoryRepository.delete(category);
+    }
+
+    public EquipmentCategory findOrThrow(Long id) {
+        return categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("EquipmentCategory", id));
+    }
+}
+==========./v2/src/main/java/com/carelio/equipment/service/EquipmentService.java
+package com.carelio.equipment.service;
+
+import com.carelio.common.PageResponse;
+import com.carelio.common.exception.ResourceNotFoundException;
+import com.carelio.equipment.dto.CreateEquipmentRequest;
+import com.carelio.equipment.dto.EquipmentResponse;
+import com.carelio.equipment.dto.UpdateEquipmentRequest;
+import com.carelio.equipment.entity.Equipment;
+import com.carelio.equipment.entity.EquipmentCategory;
+import com.carelio.equipment.mapper.EquipmentMapper;
+import com.carelio.equipment.repository.EquipmentRepository;
+import com.carelio.room.entity.Room;
+import com.carelio.room.service.RoomService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class EquipmentService {
+
+    private final EquipmentRepository equipmentRepository;
+    private final EquipmentMapper equipmentMapper;
+    private final RoomService roomService;
+    private final EquipmentCategoryService categoryService;
+
+    public PageResponse<EquipmentResponse> getAll(Pageable pageable) {
+        Page<Equipment> page = equipmentRepository.findAllByDeletedFalse(pageable);
+        List<EquipmentResponse> content = equipmentMapper.toResponseList(page.getContent());
+        return PageResponse.of(page, content);
+    }
+
+    public PageResponse<EquipmentResponse> getByRoom(Long roomId, Pageable pageable) {
+        Page<Equipment> page = equipmentRepository.findAllByRoomIdAndDeletedFalse(roomId, pageable);
+        List<EquipmentResponse> content = equipmentMapper.toResponseList(page.getContent());
+        return PageResponse.of(page, content);
+    }
+
+    public PageResponse<EquipmentResponse> getByCategory(Long categoryId, Pageable pageable) {
+        Page<Equipment> page = equipmentRepository.findAllByCategoryIdAndDeletedFalse(categoryId, pageable);
+        List<EquipmentResponse> content = equipmentMapper.toResponseList(page.getContent());
+        return PageResponse.of(page, content);
+    }
+
+    public EquipmentResponse getById(Long id) {
+        return equipmentMapper.toResponse(findActiveOrThrow(id));
+    }
+
+    @Transactional
+    public EquipmentResponse create(CreateEquipmentRequest request) {
+        Room room = roomService.findActiveOrThrow(request.getRoomId());
+        EquipmentCategory category = categoryService.findOrThrow(request.getCategoryId());
+
+        Equipment equipment = Equipment.builder()
+                .name(request.getName())
+                .brand(request.getBrand())
+                .model(request.getModel())
+                .serialNumber(request.getSerialNumber())
+                .status(request.getStatus())
+                .condition(request.getCondition())
+                .room(room)
+                .category(category)
+                .build();
+
+        return equipmentMapper.toResponse(equipmentRepository.save(equipment));
+    }
+
+    @Transactional
+    public EquipmentResponse update(Long id, UpdateEquipmentRequest request) {
+        Equipment equipment = findActiveOrThrow(id);
+
+        if (request.getName() != null) equipment.setName(request.getName());
+        if (request.getBrand() != null) equipment.setBrand(request.getBrand());
+        if (request.getModel() != null) equipment.setModel(request.getModel());
+        if (request.getSerialNumber() != null) equipment.setSerialNumber(request.getSerialNumber());
+        if (request.getStatus() != null) equipment.setStatus(request.getStatus());
+        if (request.getCondition() != null) equipment.setCondition(request.getCondition());
+        if (request.getRoomId() != null) {
+            equipment.setRoom(roomService.findActiveOrThrow(request.getRoomId()));
+        }
+        if (request.getCategoryId() != null) {
+            equipment.setCategory(categoryService.findOrThrow(request.getCategoryId()));
+        }
+
+        return equipmentMapper.toResponse(equipmentRepository.save(equipment));
+    }
+
+    @Transactional
+    public void softDelete(Long id) {
+        Equipment equipment = findActiveOrThrow(id);
+        equipment.setDeleted(true);
+        equipmentRepository.save(equipment);
+    }
+
+    public Equipment findActiveOrThrow(Long id) {
+        return equipmentRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Equipment", id));
+    }
+}
+==========./v2/src/main/java/com/carelio/payment/controller/PaymentController.java
+package com.carelio.payment.controller;
+
+import com.carelio.payment.dto.CreatePaymentRequest;
+import com.carelio.payment.dto.PaymentResponse;
+import com.carelio.payment.service.PaymentService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/payments")
+@RequiredArgsConstructor
+public class PaymentController {
+
+    private final PaymentService paymentService;
+
+    @GetMapping(params = "orderId")
+    public List<PaymentResponse> getByOrder(@RequestParam Long orderId) {
+        return paymentService.getByOrder(orderId);
+    }
+
+    @GetMapping("/{id}")
+    public PaymentResponse getById(@PathVariable Long id) {
+        return paymentService.getById(id);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public PaymentResponse create(@Valid @RequestBody CreatePaymentRequest request) {
+        return paymentService.create(request);
+    }
+}
+==========./v2/src/main/java/com/carelio/payment/dto/CreatePaymentRequest.java
+package com.carelio.payment.dto;
+
+import com.carelio.payment.entity.PaymentMethod;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import lombok.*;
+
+import java.math.BigDecimal;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class CreatePaymentRequest {
+
+    @NotNull(message = "Order ID is required")
+    private Long orderId;
+
+    @NotNull(message = "Amount is required")
+    @Positive(message = "Amount must be positive")
+    private BigDecimal amount;
+
+    @NotNull(message = "Payment method is required")
+    private PaymentMethod method;
+
+    private String transactionRef;
+    private String note;
+}
+==========./v2/src/main/java/com/carelio/payment/dto/PaymentResponse.java
+package com.carelio.payment.dto;
+
+import com.carelio.payment.entity.PaymentMethod;
+import com.carelio.payment.entity.PaymentStatus;
+import lombok.*;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class PaymentResponse {
+
+    private Long id;
+    private Long orderId;
+    private BigDecimal amount;
+    private PaymentMethod method;
+    private PaymentStatus status;
+    private String transactionRef;
+    private LocalDateTime paidAt;
+    private String note;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+==========./v2/src/main/java/com/carelio/payment/entity/Payment.java
+package com.carelio.payment.entity;
+
+import com.carelio.common.BaseEntity;
+import com.carelio.serviceorder.entity.ServiceOrder;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "payments")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Payment extends BaseEntity {
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", nullable = false)
+    private ServiceOrder serviceOrder;
+
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal amount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PaymentMethod method;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PaymentStatus status;
+
+    @Column(name = "transaction_ref", unique = true, length = 100)
+    private String transactionRef;
+
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
+
+    private String note;
+}
+==========./v2/src/main/java/com/carelio/payment/entity/PaymentMethod.java
+package com.carelio.payment.entity;
+
+public enum PaymentMethod {
+    CASH,
+    BANK_TRANSFER,
+    CREDIT_CARD,
+    E_WALLET
+}
+==========./v2/src/main/java/com/carelio/payment/entity/PaymentStatus.java
+package com.carelio.payment.entity;
+
+public enum PaymentStatus {
+    PENDING,
+    COMPLETED,
+    FAILED,
+    REFUNDED
+}
+==========./v2/src/main/java/com/carelio/payment/mapper/PaymentMapper.java
+package com.carelio.payment.mapper;
+
+import com.carelio.payment.dto.PaymentResponse;
+import com.carelio.payment.entity.Payment;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+import java.util.List;
+
+@Mapper(componentModel = "spring")
+public interface PaymentMapper {
+
+    @Mapping(target = "orderId", source = "serviceOrder.id")
+    PaymentResponse toResponse(Payment payment);
+
+    List<PaymentResponse> toResponseList(List<Payment> payments);
+}
+==========./v2/src/main/java/com/carelio/payment/repository/PaymentRepository.java
+package com.carelio.payment.repository;
+
+import com.carelio.payment.entity.Payment;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface PaymentRepository extends JpaRepository<Payment, Long> {
+
+    List<Payment> findAllByServiceOrderId(Long orderId);
+
+    boolean existsByTransactionRef(String transactionRef);
+}
+==========./v2/src/main/java/com/carelio/payment/service/PaymentService.java
+package com.carelio.payment.service;
+
+import com.carelio.common.exception.BusinessRuleException;
+import com.carelio.common.exception.DuplicateResourceException;
+import com.carelio.common.exception.ResourceNotFoundException;
+import com.carelio.payment.dto.CreatePaymentRequest;
+import com.carelio.payment.dto.PaymentResponse;
+import com.carelio.payment.entity.Payment;
+import com.carelio.payment.entity.PaymentStatus;
+import com.carelio.payment.mapper.PaymentMapper;
+import com.carelio.payment.repository.PaymentRepository;
+import com.carelio.serviceorder.entity.OrderStatus;
+import com.carelio.serviceorder.entity.ServiceOrder;
+import com.carelio.serviceorder.service.ServiceOrderService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class PaymentService {
+
+    private final PaymentRepository paymentRepository;
+    private final PaymentMapper paymentMapper;
+    private final ServiceOrderService orderService;
+
+    public List<PaymentResponse> getByOrder(Long orderId) {
+        orderService.findActiveOrThrow(orderId);
+        return paymentMapper.toResponseList(paymentRepository.findAllByServiceOrderId(orderId));
+    }
+
+    public PaymentResponse getById(Long id) {
+        return paymentMapper.toResponse(findOrThrow(id));
+    }
+
+    @Transactional
+    public PaymentResponse create(CreatePaymentRequest request) {
+        ServiceOrder order = orderService.findActiveOrThrow(request.getOrderId());
+
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new BusinessRuleException("Cannot create payment for a cancelled order");
+        }
+
+        if (request.getTransactionRef() != null
+                && paymentRepository.existsByTransactionRef(request.getTransactionRef())) {
+            throw new DuplicateResourceException(
+                    "Transaction reference already exists: " + request.getTransactionRef());
+        }
+
+        Payment payment = Payment.builder()
+                .serviceOrder(order)
+                .amount(request.getAmount())
+                .method(request.getMethod())
+                .status(PaymentStatus.COMPLETED)
+                .transactionRef(request.getTransactionRef())
+                .paidAt(LocalDateTime.now())
+                .note(request.getNote())
+                .build();
+
+        return paymentMapper.toResponse(paymentRepository.save(payment));
+    }
+
+    private Payment findOrThrow(Long id) {
+        return paymentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment", id));
+    }
+}
+==========./v2/src/main/java/com/carelio/room/controller/RoomController.java
+package com.carelio.room.controller;
+
+import com.carelio.common.PageResponse;
+import com.carelio.room.dto.CreateRoomRequest;
+import com.carelio.room.dto.RoomResponse;
+import com.carelio.room.dto.UpdateRoomRequest;
+import com.carelio.room.service.RoomService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/rooms")
+@RequiredArgsConstructor
+public class RoomController {
+
+    private final RoomService roomService;
+
+    @GetMapping
+    public PageResponse<RoomResponse> getAll(Pageable pageable) {
+        return roomService.getAll(pageable);
+    }
+
+    @GetMapping(params = "ownerId")
+    public PageResponse<RoomResponse> getByOwner(
+            @RequestParam Long ownerId, Pageable pageable) {
+        return roomService.getByOwner(ownerId, pageable);
+    }
+
+    @GetMapping("/{id}")
+    public RoomResponse getById(@PathVariable Long id) {
+        return roomService.getById(id);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public RoomResponse create(@Valid @RequestBody CreateRoomRequest request) {
+        return roomService.create(request);
+    }
+
+    @PatchMapping("/{id}")
+    public RoomResponse update(@PathVariable Long id, @Valid @RequestBody UpdateRoomRequest request) {
+        return roomService.update(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id) {
+        roomService.softDelete(id);
+    }
+}
+==========./v2/src/main/java/com/carelio/room/dto/CreateRoomRequest.java
+package com.carelio.room.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class CreateRoomRequest {
+
+    @NotBlank(message = "Name is required")
+    private String name;
+
+    private String description;
+    private Integer floor;
+
+    @NotNull(message = "Owner ID is required")
+    private Long ownerId;
+}
+==========./v2/src/main/java/com/carelio/room/dto/RoomResponse.java
+package com.carelio.room.dto;
+
+import lombok.*;
+
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class RoomResponse {
+
+    private Long id;
+    private String name;
+    private String description;
+    private Integer floor;
+    private Long ownerId;
+    private int equipmentCount;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+==========./v2/src/main/java/com/carelio/room/dto/UpdateRoomRequest.java
+package com.carelio.room.dto;
+
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class UpdateRoomRequest {
+
+    private String name;
+    private String description;
+    private Integer floor;
+}
+==========./v2/src/main/java/com/carelio/room/entity/Room.java
+package com.carelio.room.entity;
+
+import com.carelio.common.BaseEntity;
+import com.carelio.equipment.entity.Equipment;
+import com.carelio.user.entity.User;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "rooms")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Room extends BaseEntity {
+
+    @Column(nullable = false)
+    private String name;
+
+    private String description;
+
+    private Integer floor;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id", nullable = false)
+    private User owner;
+
+    @OneToMany(mappedBy = "room")
+    @Builder.Default
+    private List<Equipment> equipments = new ArrayList<>();
+}
+==========./v2/src/main/java/com/carelio/room/mapper/RoomMapper.java
+package com.carelio.room.mapper;
+
+import com.carelio.room.dto.RoomResponse;
+import com.carelio.room.entity.Room;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+import java.util.List;
+
+@Mapper(componentModel = "spring")
+public interface RoomMapper {
+
+    @Mapping(target = "ownerId", source = "owner.id")
+    @Mapping(target = "equipmentCount", expression = "java(room.getEquipments() != null ? room.getEquipments().size() : 0)")
+    RoomResponse toResponse(Room room);
+
+    List<RoomResponse> toResponseList(List<Room> rooms);
+}
+==========./v2/src/main/java/com/carelio/room/repository/RoomRepository.java
+package com.carelio.room.repository;
+
+import com.carelio.room.entity.Room;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface RoomRepository extends JpaRepository<Room, Long> {
+
+    Page<Room> findAllByDeletedFalse(Pageable pageable);
+
+    Page<Room> findAllByOwnerIdAndDeletedFalse(Long ownerId, Pageable pageable);
+
+    Optional<Room> findByIdAndDeletedFalse(Long id);
+}
+==========./v2/src/main/java/com/carelio/room/service/RoomService.java
+package com.carelio.room.service;
+
+import com.carelio.common.PageResponse;
+import com.carelio.common.exception.BusinessRuleException;
+import com.carelio.common.exception.ResourceNotFoundException;
+import com.carelio.room.dto.CreateRoomRequest;
+import com.carelio.room.dto.RoomResponse;
+import com.carelio.room.dto.UpdateRoomRequest;
+import com.carelio.room.entity.Room;
+import com.carelio.room.mapper.RoomMapper;
+import com.carelio.room.repository.RoomRepository;
+import com.carelio.user.entity.User;
+import com.carelio.user.service.UserService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class RoomService {
+
+    private final RoomRepository roomRepository;
+    private final RoomMapper roomMapper;
+    private final UserService userService;
+
+    public PageResponse<RoomResponse> getAll(Pageable pageable) {
+        Page<Room> page = roomRepository.findAllByDeletedFalse(pageable);
+        List<RoomResponse> content = roomMapper.toResponseList(page.getContent());
+        return PageResponse.of(page, content);
+    }
+
+    public PageResponse<RoomResponse> getByOwner(Long ownerId, Pageable pageable) {
+        Page<Room> page = roomRepository.findAllByOwnerIdAndDeletedFalse(ownerId, pageable);
+        List<RoomResponse> content = roomMapper.toResponseList(page.getContent());
+        return PageResponse.of(page, content);
+    }
+
+    public RoomResponse getById(Long id) {
+        return roomMapper.toResponse(findActiveOrThrow(id));
+    }
+
+    @Transactional
+    public RoomResponse create(CreateRoomRequest request) {
+        User owner = userService.findActiveOrThrow(request.getOwnerId());
+
+        Room room = Room.builder()
+                .name(request.getName())
+                .description(request.getDescription())
+                .floor(request.getFloor())
+                .owner(owner)
+                .build();
+        return roomMapper.toResponse(roomRepository.save(room));
+    }
+
+    @Transactional
+    public RoomResponse update(Long id, UpdateRoomRequest request) {
+        Room room = findActiveOrThrow(id);
+
+        if (request.getName() != null) room.setName(request.getName());
+        if (request.getDescription() != null) room.setDescription(request.getDescription());
+        if (request.getFloor() != null) room.setFloor(request.getFloor());
+
+        return roomMapper.toResponse(roomRepository.save(room));
+    }
+
+    @Transactional
+    public void softDelete(Long id) {
+        Room room = findActiveOrThrow(id);
+        if (room.getEquipments() != null && !room.getEquipments().isEmpty()) {
+            throw new BusinessRuleException("Cannot delete room that still has equipment");
+        }
+        room.setDeleted(true);
+        roomRepository.save(room);
+    }
+
+    public Room findActiveOrThrow(Long id) {
+        return roomRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Room", id));
+    }
+}
+==========./v2/src/main/java/com/carelio/serviceorder/controller/ServiceOrderController.java
+package com.carelio.serviceorder.controller;
+
+import com.carelio.common.PageResponse;
+import com.carelio.serviceorder.dto.*;
+import com.carelio.serviceorder.entity.OrderStatus;
+import com.carelio.serviceorder.service.ServiceOrderService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/service-orders")
+@RequiredArgsConstructor
+public class ServiceOrderController {
+
+    private final ServiceOrderService orderService;
+
+    @GetMapping
+    public PageResponse<ServiceOrderResponse> getAll(Pageable pageable) {
+        return orderService.getAll(pageable);
+    }
+
+    @GetMapping(params = "customerId")
+    public PageResponse<ServiceOrderResponse> getByCustomer(
+            @RequestParam Long customerId, Pageable pageable) {
+        return orderService.getByCustomer(customerId, pageable);
+    }
+
+    @GetMapping(params = "workerId")
+    public PageResponse<ServiceOrderResponse> getByWorker(
+            @RequestParam Long workerId, Pageable pageable) {
+        return orderService.getByWorker(workerId, pageable);
+    }
+
+    @GetMapping(params = "status")
+    public PageResponse<ServiceOrderResponse> getByStatus(
+            @RequestParam OrderStatus status, Pageable pageable) {
+        return orderService.getByStatus(status, pageable);
+    }
+
+    @GetMapping("/{id}")
+    public ServiceOrderResponse getById(@PathVariable Long id) {
+        return orderService.getById(id);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public ServiceOrderResponse create(@Valid @RequestBody CreateServiceOrderRequest request) {
+        return orderService.create(request);
+    }
+
+    @PostMapping("/{id}/assign")
+    public ServiceOrderResponse assignWorker(
+            @PathVariable Long id,
+            @Valid @RequestBody AssignWorkerRequest request) {
+        return orderService.assignWorker(id, request);
+    }
+
+    @PatchMapping("/{id}/status")
+    public ServiceOrderResponse updateStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateOrderStatusRequest request) {
+        return orderService.updateStatus(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cancel(@PathVariable Long id) {
+        orderService.cancel(id);
+    }
+}
+==========./v2/src/main/java/com/carelio/serviceorder/dto/AssignWorkerRequest.java
+package com.carelio.serviceorder.dto;
+
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class AssignWorkerRequest {
+
+    @NotNull(message = "Worker ID is required")
+    private Long workerId;
+}
+==========./v2/src/main/java/com/carelio/serviceorder/dto/CreateServiceOrderRequest.java
+package com.carelio.serviceorder.dto;
+
+import com.carelio.serviceorder.entity.ServiceType;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+
+import java.util.Set;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class CreateServiceOrderRequest {
+
+    @NotBlank(message = "Title is required")
+    private String title;
+
+    private String description;
+
+    @NotEmpty(message = "At least one service type is required")
+    private Set<ServiceType> serviceTypes;
+
+    @NotNull(message = "Customer ID is required")
+    private Long customerId;
+
+    @NotNull(message = "Equipment ID is required")
+    private Long equipmentId;
+
+    private Long addressId;
+}
+==========./v2/src/main/java/com/carelio/serviceorder/dto/ServiceOrderResponse.java
+package com.carelio.serviceorder.dto;
+
+import com.carelio.serviceorder.entity.OrderStatus;
+import com.carelio.serviceorder.entity.ServiceType;
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.util.Set;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class ServiceOrderResponse {
+
+    private Long id;
+    private String title;
+    private String description;
+    private OrderStatus status;
+    private Set<ServiceType> serviceTypes;
+
+    private Long customerId;
+    private String customerUsername;
+
+    private Long equipmentId;
+    private String equipmentName;
+
+    private Long addressId;
+
+    private Long assignedWorkerId;
+    private String assignedWorkerUsername;
+
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+==========./v2/src/main/java/com/carelio/serviceorder/dto/UpdateOrderStatusRequest.java
+package com.carelio.serviceorder.dto;
+
+import com.carelio.serviceorder.entity.OrderStatus;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class UpdateOrderStatusRequest {
+
+    @NotNull(message = "Status is required")
+    private OrderStatus status;
+}
+==========./v2/src/main/java/com/carelio/serviceorder/entity/OrderStatus.java
+package com.carelio.serviceorder.entity;
+
+public enum OrderStatus {
+    PENDING,
+    ASSIGNED,
+    IN_PROGRESS,
+    COMPLETED,
+    CANCELLED
+}
+==========./v2/src/main/java/com/carelio/serviceorder/entity/ServiceOrder.java
+package com.carelio.serviceorder.entity;
+
+import com.carelio.common.BaseEntity;
+import com.carelio.equipment.entity.Equipment;
+import com.carelio.user.entity.User;
+import com.carelio.user.entity.UserAddress;
+import com.carelio.worker.entity.Worker;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.HashSet;
+import java.util.Set;
+
+@Entity
+@Table(name = "service_orders")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class ServiceOrder extends BaseEntity {
+
+    @Column(nullable = false)
+    private String title;
+
+    private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private OrderStatus status;
+
+    @ElementCollection(targetClass = ServiceType.class, fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "service_order_types",
+            joinColumns = @JoinColumn(name = "order_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "service_type")
+    @Builder.Default
+    private Set<ServiceType> serviceTypes = new HashSet<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", nullable = false)
+    private User customer;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "equipment_id", nullable = false)
+    private Equipment equipment;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "address_id")
+    private UserAddress address;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_worker_id")
+    private Worker assignedWorker;
+}
+==========./v2/src/main/java/com/carelio/serviceorder/entity/ServiceType.java
+package com.carelio.serviceorder.entity;
+
+public enum ServiceType {
+    REPAIR,
+    MAINTENANCE,
+    INSTALLATION,
+    INSPECTION
+}
+==========./v2/src/main/java/com/carelio/serviceorder/mapper/ServiceOrderMapper.java
+package com.carelio.serviceorder.mapper;
+
+import com.carelio.serviceorder.dto.ServiceOrderResponse;
+import com.carelio.serviceorder.entity.ServiceOrder;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+import java.util.List;
+
+@Mapper(componentModel = "spring")
+public interface ServiceOrderMapper {
+
+    @Mapping(target = "customerId", source = "customer.id")
+    @Mapping(target = "customerUsername", source = "customer.username")
+    @Mapping(target = "equipmentId", source = "equipment.id")
+    @Mapping(target = "equipmentName", source = "equipment.name")
+    @Mapping(target = "addressId", source = "address.id")
+    @Mapping(target = "assignedWorkerId", source = "assignedWorker.id")
+    @Mapping(target = "assignedWorkerUsername", source = "assignedWorker.user.username")
+    ServiceOrderResponse toResponse(ServiceOrder order);
+
+    List<ServiceOrderResponse> toResponseList(List<ServiceOrder> orders);
+}
+==========./v2/src/main/java/com/carelio/serviceorder/repository/ServiceOrderRepository.java
+package com.carelio.serviceorder.repository;
+
+import com.carelio.serviceorder.entity.OrderStatus;
+import com.carelio.serviceorder.entity.ServiceOrder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, Long> {
+
+    Page<ServiceOrder> findAllByDeletedFalse(Pageable pageable);
+
+    Page<ServiceOrder> findAllByCustomerIdAndDeletedFalse(Long customerId, Pageable pageable);
+
+    Page<ServiceOrder> findAllByAssignedWorkerIdAndDeletedFalse(Long workerId, Pageable pageable);
+
+    Page<ServiceOrder> findAllByStatusAndDeletedFalse(OrderStatus status, Pageable pageable);
+
+    Optional<ServiceOrder> findByIdAndDeletedFalse(Long id);
+}
+==========./v2/src/main/java/com/carelio/serviceorder/service/ServiceOrderService.java
+package com.carelio.serviceorder.service;
+
+import com.carelio.common.PageResponse;
+import com.carelio.common.exception.BusinessRuleException;
+import com.carelio.common.exception.ResourceNotFoundException;
+import com.carelio.equipment.entity.Equipment;
+import com.carelio.equipment.service.EquipmentService;
+import com.carelio.serviceorder.dto.*;
+import com.carelio.serviceorder.entity.OrderStatus;
+import com.carelio.serviceorder.entity.ServiceOrder;
+import com.carelio.serviceorder.mapper.ServiceOrderMapper;
+import com.carelio.serviceorder.repository.ServiceOrderRepository;
+import com.carelio.user.entity.User;
+import com.carelio.user.entity.UserAddress;
+import com.carelio.user.repository.UserAddressRepository;
+import com.carelio.user.service.UserService;
+import com.carelio.worker.entity.Worker;
+import com.carelio.worker.entity.WorkerStatus;
+import com.carelio.worker.service.WorkerService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Set;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class ServiceOrderService {
+
+    private static final Set<OrderStatus> TERMINAL_STATUSES =
+            EnumSet.of(OrderStatus.COMPLETED, OrderStatus.CANCELLED);
+
+    private final ServiceOrderRepository orderRepository;
+    private final ServiceOrderMapper orderMapper;
+    private final UserService userService;
+    private final EquipmentService equipmentService;
+    private final WorkerService workerService;
+    private final UserAddressRepository addressRepository;
+
+    public PageResponse<ServiceOrderResponse> getAll(Pageable pageable) {
+        Page<ServiceOrder> page = orderRepository.findAllByDeletedFalse(pageable);
+        return PageResponse.of(page, orderMapper.toResponseList(page.getContent()));
+    }
+
+    public PageResponse<ServiceOrderResponse> getByCustomer(Long customerId, Pageable pageable) {
+        Page<ServiceOrder> page = orderRepository.findAllByCustomerIdAndDeletedFalse(customerId, pageable);
+        return PageResponse.of(page, orderMapper.toResponseList(page.getContent()));
+    }
+
+    public PageResponse<ServiceOrderResponse> getByWorker(Long workerId, Pageable pageable) {
+        Page<ServiceOrder> page = orderRepository.findAllByAssignedWorkerIdAndDeletedFalse(workerId, pageable);
+        return PageResponse.of(page, orderMapper.toResponseList(page.getContent()));
+    }
+
+    public PageResponse<ServiceOrderResponse> getByStatus(OrderStatus status, Pageable pageable) {
+        Page<ServiceOrder> page = orderRepository.findAllByStatusAndDeletedFalse(status, pageable);
+        return PageResponse.of(page, orderMapper.toResponseList(page.getContent()));
+    }
+
+    public ServiceOrderResponse getById(Long id) {
+        return orderMapper.toResponse(findActiveOrThrow(id));
+    }
+
+    @Transactional
+    public ServiceOrderResponse create(CreateServiceOrderRequest request) {
+        User customer = userService.findActiveOrThrow(request.getCustomerId());
+        Equipment equipment = equipmentService.findActiveOrThrow(request.getEquipmentId());
+
+        UserAddress address = null;
+        if (request.getAddressId() != null) {
+            address = addressRepository.findById(request.getAddressId())
+                    .orElseThrow(() -> new ResourceNotFoundException("UserAddress", request.getAddressId()));
+        }
+
+        ServiceOrder order = ServiceOrder.builder()
+                .title(request.getTitle())
+                .description(request.getDescription())
+                .status(OrderStatus.PENDING)
+                .serviceTypes(request.getServiceTypes())
+                .customer(customer)
+                .equipment(equipment)
+                .address(address)
+                .build();
+
+        return orderMapper.toResponse(orderRepository.save(order));
+    }
+
+    @Transactional
+    public ServiceOrderResponse assignWorker(Long orderId, AssignWorkerRequest request) {
+        ServiceOrder order = findActiveOrThrow(orderId);
+
+        if (TERMINAL_STATUSES.contains(order.getStatus())) {
+            throw new BusinessRuleException("Cannot assign worker to a " + order.getStatus() + " order");
+        }
+
+        Worker worker = workerService.findActiveOrThrow(request.getWorkerId());
+        if (worker.getStatus() != WorkerStatus.AVAILABLE) {
+            throw new BusinessRuleException("Worker is not available (current status: " + worker.getStatus() + ")");
+        }
+
+        order.setAssignedWorker(worker);
+        order.setStatus(OrderStatus.ASSIGNED);
+        worker.setStatus(WorkerStatus.BUSY);
+
+        return orderMapper.toResponse(orderRepository.save(order));
+    }
+
+    @Transactional
+    public ServiceOrderResponse updateStatus(Long orderId, UpdateOrderStatusRequest request) {
+        ServiceOrder order = findActiveOrThrow(orderId);
+        OrderStatus current = order.getStatus();
+        OrderStatus next = request.getStatus();
+
+        validateTransition(current, next);
+
+        order.setStatus(next);
+
+        if (next == OrderStatus.COMPLETED || next == OrderStatus.CANCELLED) {
+            if (order.getAssignedWorker() != null) {
+                order.getAssignedWorker().setStatus(WorkerStatus.AVAILABLE);
+                if (next == OrderStatus.COMPLETED) {
+                    order.getAssignedWorker().setTotalJobs(
+                            order.getAssignedWorker().getTotalJobs() + 1);
+                }
+            }
+        }
+
+        return orderMapper.toResponse(orderRepository.save(order));
+    }
+
+    @Transactional
+    public void cancel(Long orderId) {
+        ServiceOrder order = findActiveOrThrow(orderId);
+        if (TERMINAL_STATUSES.contains(order.getStatus())) {
+            throw new BusinessRuleException("Order is already " + order.getStatus());
+        }
+        order.setStatus(OrderStatus.CANCELLED);
+        if (order.getAssignedWorker() != null) {
+            order.getAssignedWorker().setStatus(WorkerStatus.AVAILABLE);
+        }
+        order.setDeleted(true);
+        orderRepository.save(order);
+    }
+
+    private void validateTransition(OrderStatus current, OrderStatus next) {
+        boolean valid = switch (current) {
+            case PENDING -> next == OrderStatus.ASSIGNED || next == OrderStatus.CANCELLED;
+            case ASSIGNED -> next == OrderStatus.IN_PROGRESS || next == OrderStatus.CANCELLED;
+            case IN_PROGRESS -> next == OrderStatus.COMPLETED || next == OrderStatus.CANCELLED;
+            case COMPLETED, CANCELLED -> false;
+        };
+        if (!valid) {
+            throw new BusinessRuleException(
+                    "Invalid status transition: " + current + " -> " + next);
+        }
+    }
+
+    public ServiceOrder findActiveOrThrow(Long id) {
+        return orderRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException("ServiceOrder", id));
+    }
+}
+==========./v2/src/main/java/com/carelio/user/controller/UserController.java
+package com.carelio.user.controller;
+
+import com.carelio.common.PageResponse;
+import com.carelio.user.dto.*;
+import com.carelio.user.entity.RoleCode;
+import com.carelio.user.service.UserService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/users")
+@RequiredArgsConstructor
+public class UserController {
+
+    private final UserService userService;
+
+    @GetMapping
+    public PageResponse<UserResponse> getAll(Pageable pageable) {
+        return userService.getAll(pageable);
+    }
+
+    @GetMapping("/{id}")
+    public UserResponse getById(@PathVariable Long id) {
+        return userService.getById(id);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public UserResponse create(@Valid @RequestBody CreateUserRequest request) {
+        return userService.create(request);
+    }
+
+    @PatchMapping("/{id}")
+    public UserResponse update(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request) {
+        return userService.update(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id) {
+        userService.softDelete(id);
+    }
+
+    @PostMapping("/{id}/roles/{role}")
+    public UserResponse addRole(@PathVariable Long id, @PathVariable RoleCode role) {
+        return userService.addRole(id, role);
+    }
+
+    @DeleteMapping("/{id}/roles/{role}")
+    public UserResponse removeRole(@PathVariable Long id, @PathVariable RoleCode role) {
+        return userService.removeRole(id, role);
+    }
+
+    @GetMapping("/{id}/addresses")
+    public List<UserAddressResponse> getAddresses(@PathVariable Long id) {
+        return userService.getAddresses(id);
+    }
+
+    @PostMapping("/{id}/addresses")
+    @ResponseStatus(HttpStatus.CREATED)
+    public UserAddressResponse addAddress(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateUserAddressRequest request) {
+        return userService.addAddress(id, request);
+    }
+}
+==========./v2/src/main/java/com/carelio/user/dto/CreateUserAddressRequest.java
+package com.carelio.user.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class CreateUserAddressRequest {
+
+    @NotBlank(message = "City is required")
+    private String city;
+
+    @NotBlank(message = "District is required")
+    private String district;
+
+    private String ward;
+    private String addressLine;
+    private boolean defaultAddress;
+}
+==========./v2/src/main/java/com/carelio/user/dto/CreateUserRequest.java
+package com.carelio.user.dto;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class CreateUserRequest {
+
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email format is invalid")
+    private String email;
+
+    @NotBlank(message = "Username is required")
+    private String username;
+
+    private String avatarUrl;
+    private String phoneNumber;
+}
+==========./v2/src/main/java/com/carelio/user/dto/UpdateUserRequest.java
+package com.carelio.user.dto;
+
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class UpdateUserRequest {
+
+    private String username;
+    private String avatarUrl;
+    private String phoneNumber;
+}
+==========./v2/src/main/java/com/carelio/user/dto/UserAddressResponse.java
+package com.carelio.user.dto;
+
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class UserAddressResponse {
+
+    private Long id;
+    private String city;
+    private String district;
+    private String ward;
+    private String addressLine;
+    private boolean defaultAddress;
+}
+==========./v2/src/main/java/com/carelio/user/dto/UserResponse.java
+package com.carelio.user.dto;
+
+import com.carelio.user.entity.RoleCode;
+import com.carelio.user.entity.UserStatus;
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.util.Set;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class UserResponse {
+
+    private Long id;
+    private String email;
+    private String username;
+    private String avatarUrl;
+    private String phoneNumber;
+    private UserStatus status;
+    private Set<RoleCode> roles;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+==========./v2/src/main/java/com/carelio/user/entity/RoleCode.java
+package com.carelio.user.entity;
+
+public enum RoleCode {
+    ADMIN,
+    CUSTOMER,
+    WORKER
+}
+==========./v2/src/main/java/com/carelio/user/entity/User.java
+package com.carelio.user.entity;
+
+import com.carelio.common.BaseEntity;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+@Entity
+@Table(name = "users")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class User extends BaseEntity {
+
+    @Column(unique = true, nullable = false)
+    private String email;
+
+    @Column(unique = true, nullable = false)
+    private String username;
+
+    @Column(name = "password_hash")
+    private String passwordHash;
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
+    @Column(name = "phone_number")
+    private String phoneNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserStatus status;
+
+    @ElementCollection(targetClass = RoleCode.class, fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role")
+    @Builder.Default
+    private Set<RoleCode> roles = new HashSet<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<UserAddress> addresses = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<UserAuthProvider> authProviders = new ArrayList<>();
+}
+==========./v2/src/main/java/com/carelio/user/entity/UserAddress.java
+package com.carelio.user.entity;
+
+import com.carelio.common.BaseEntity;
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "user_addresses")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class UserAddress extends BaseEntity {
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @Column(nullable = false)
+    private String city;
+
+    @Column(nullable = false)
+    private String district;
+
+    private String ward;
+
+    @Column(name = "address_line")
+    private String addressLine;
+
+    @Column(name = "is_default", nullable = false)
+    private boolean defaultAddress = false;
+}
+==========./v2/src/main/java/com/carelio/user/entity/UserAuthProvider.java
+package com.carelio.user.entity;
+
+import com.carelio.common.BaseEntity;
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "user_auth_providers",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"provider_name", "provider_user_id"}))
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class UserAuthProvider extends BaseEntity {
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @Column(name = "provider_name", nullable = false)
+    private String providerName;
+
+    @Column(name = "provider_user_id", nullable = false)
+    private String providerUserId;
+
+    @Column(name = "provider_email")
+    private String providerEmail;
+}
+==========./v2/src/main/java/com/carelio/user/entity/UserStatus.java
+package com.carelio.user.entity;
+
+public enum UserStatus {
+    ACTIVE,
+    INACTIVE,
+    SUSPENDED
+}
+==========./v2/src/main/java/com/carelio/user/mapper/UserMapper.java
+package com.carelio.user.mapper;
+
+import com.carelio.user.dto.CreateUserRequest;
+import com.carelio.user.dto.UserAddressResponse;
+import com.carelio.user.dto.UserResponse;
+import com.carelio.user.entity.User;
+import com.carelio.user.entity.UserAddress;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+import java.util.List;
+
+@Mapper(componentModel = "spring")
+public interface UserMapper {
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "deleted", ignore = true)
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "roles", ignore = true)
+    @Mapping(target = "addresses", ignore = true)
+    @Mapping(target = "authProviders", ignore = true)
+    @Mapping(target = "passwordHash", ignore = true)
+    User toEntity(CreateUserRequest request);
+
+    UserResponse toResponse(User user);
+
+    List<UserResponse> toResponseList(List<User> users);
+
+    UserAddressResponse toAddressResponse(UserAddress address);
+
+    List<UserAddressResponse> toAddressResponseList(List<UserAddress> addresses);
+}
+==========./v2/src/main/java/com/carelio/user/repository/UserAddressRepository.java
+package com.carelio.user.repository;
+
+import com.carelio.user.entity.UserAddress;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface UserAddressRepository extends JpaRepository<UserAddress, Long> {
+
+    List<UserAddress> findAllByUserIdAndDeletedFalse(Long userId);
+}
+==========./v2/src/main/java/com/carelio/user/repository/UserRepository.java
+package com.carelio.user.repository;
+
+import com.carelio.user.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface UserRepository extends JpaRepository<User, Long> {
+
+    Page<User> findAllByDeletedFalse(Pageable pageable);
+
+    Optional<User> findByIdAndDeletedFalse(Long id);
+
+    boolean existsByEmail(String email);
+
+    boolean existsByUsername(String username);
+}
+==========./v2/src/main/java/com/carelio/user/service/UserService.java
+package com.carelio.user.service;
+
+import com.carelio.common.PageResponse;
+import com.carelio.common.exception.DuplicateResourceException;
+import com.carelio.common.exception.ResourceNotFoundException;
+import com.carelio.user.dto.*;
+import com.carelio.user.entity.RoleCode;
+import com.carelio.user.entity.User;
+import com.carelio.user.entity.UserAddress;
+import com.carelio.user.entity.UserStatus;
+import com.carelio.user.mapper.UserMapper;
+import com.carelio.user.repository.UserAddressRepository;
+import com.carelio.user.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Set;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class UserService {
+
+    private final UserRepository userRepository;
+    private final UserAddressRepository userAddressRepository;
+    private final UserMapper userMapper;
+
+    public PageResponse<UserResponse> getAll(Pageable pageable) {
+        Page<User> page = userRepository.findAllByDeletedFalse(pageable);
+        List<UserResponse> content = userMapper.toResponseList(page.getContent());
+        return PageResponse.of(page, content);
+    }
+
+    public UserResponse getById(Long id) {
+        User user = findActiveOrThrow(id);
+        return userMapper.toResponse(user);
+    }
+
+    @Transactional
+    public UserResponse create(CreateUserRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new DuplicateResourceException("Email already exists: " + request.getEmail());
+        }
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new DuplicateResourceException("Username already exists: " + request.getUsername());
+        }
+
+        User user = userMapper.toEntity(request);
+        user.setStatus(UserStatus.ACTIVE);
+        user.setRoles(Set.of(RoleCode.CUSTOMER));
+        User saved = userRepository.save(user);
+        return userMapper.toResponse(saved);
+    }
+
+    @Transactional
+    public UserResponse update(Long id, UpdateUserRequest request) {
+        User user = findActiveOrThrow(id);
+
+        if (request.getUsername() != null) {
+            if (!user.getUsername().equals(request.getUsername())
+                    && userRepository.existsByUsername(request.getUsername())) {
+                throw new DuplicateResourceException("Username already exists: " + request.getUsername());
+            }
+            user.setUsername(request.getUsername());
+        }
+        if (request.getAvatarUrl() != null) user.setAvatarUrl(request.getAvatarUrl());
+        if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());
+
+        return userMapper.toResponse(userRepository.save(user));
+    }
+
+    @Transactional
+    public void softDelete(Long id) {
+        User user = findActiveOrThrow(id);
+        user.setStatus(UserStatus.INACTIVE);
+        user.setDeleted(true);
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public UserResponse addRole(Long id, RoleCode role) {
+        User user = findActiveOrThrow(id);
+        user.getRoles().add(role);
+        return userMapper.toResponse(userRepository.save(user));
+    }
+
+    @Transactional
+    public UserResponse removeRole(Long id, RoleCode role) {
+        User user = findActiveOrThrow(id);
+        user.getRoles().remove(role);
+        return userMapper.toResponse(userRepository.save(user));
+    }
+
+    // --- Address management ---
+
+    public List<UserAddressResponse> getAddresses(Long userId) {
+        findActiveOrThrow(userId);
+        return userMapper.toAddressResponseList(
+                userAddressRepository.findAllByUserIdAndDeletedFalse(userId));
+    }
+
+    @Transactional
+    public UserAddressResponse addAddress(Long userId, CreateUserAddressRequest request) {
+        User user = findActiveOrThrow(userId);
+        UserAddress address = UserAddress.builder()
+                .user(user)
+                .city(request.getCity())
+                .district(request.getDistrict())
+                .ward(request.getWard())
+                .addressLine(request.getAddressLine())
+                .defaultAddress(request.isDefaultAddress())
+                .build();
+        return userMapper.toAddressResponse(userAddressRepository.save(address));
+    }
+
+    public User findActiveOrThrow(Long id) {
+        return userRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", id));
+    }
+}
+==========./v2/src/main/java/com/carelio/worker/controller/WorkerController.java
+package com.carelio.worker.controller;
+
+import com.carelio.common.PageResponse;
+import com.carelio.worker.dto.*;
+import com.carelio.worker.service.WorkerService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/workers")
+@RequiredArgsConstructor
+public class WorkerController {
+
+    private final WorkerService workerService;
+
+    @GetMapping
+    public PageResponse<WorkerResponse> getAll(Pageable pageable) {
+        return workerService.getAll(pageable);
+    }
+
+    @GetMapping(params = "available")
+    public PageResponse<WorkerResponse> getAvailable(Pageable pageable) {
+        return workerService.getAvailable(pageable);
+    }
+
+    @GetMapping("/{id}")
+    public WorkerResponse getById(@PathVariable Long id) {
+        return workerService.getById(id);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public WorkerResponse create(@Valid @RequestBody CreateWorkerRequest request) {
+        return workerService.create(request);
+    }
+
+    @PatchMapping("/{id}")
+    public WorkerResponse update(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateWorkerRequest request) {
+        return workerService.update(id, request);
+    }
+
+    @PostMapping("/{id}/skills")
+    @ResponseStatus(HttpStatus.CREATED)
+    public WorkerResponse addSkill(
+            @PathVariable Long id,
+            @Valid @RequestBody AddWorkerSkillRequest request) {
+        return workerService.addSkill(id, request);
+    }
+
+    @DeleteMapping("/{id}/skills/{skillId}")
+    public WorkerResponse removeSkill(
+            @PathVariable Long id,
+            @PathVariable Long skillId) {
+        return workerService.removeSkill(id, skillId);
+    }
+}
+==========./v2/src/main/java/com/carelio/worker/dto/AddWorkerSkillRequest.java
+package com.carelio.worker.dto;
+
+import com.carelio.worker.entity.ServiceSkillCode;
+import com.carelio.worker.entity.SkillLevel;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class AddWorkerSkillRequest {
+
+    @NotNull(message = "Skill code is required")
+    private ServiceSkillCode skillCode;
+
+    @NotNull(message = "Category ID is required")
+    private Long categoryId;
+
+    private Integer yearsExperience;
+
+    @NotNull(message = "Skill level is required")
+    private SkillLevel skillLevel;
+}
+==========./v2/src/main/java/com/carelio/worker/dto/CreateWorkerRequest.java
+package com.carelio.worker.dto;
+
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class CreateWorkerRequest {
+
+    @NotNull(message = "User ID is required")
+    private Long userId;
+
+    private String bio;
+}
+==========./v2/src/main/java/com/carelio/worker/dto/UpdateWorkerRequest.java
+package com.carelio.worker.dto;
+
+import com.carelio.worker.entity.WorkerStatus;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class UpdateWorkerRequest {
+
+    private String bio;
+    private WorkerStatus status;
+}
+==========./v2/src/main/java/com/carelio/worker/dto/WorkerResponse.java
+package com.carelio.worker.dto;
+
+import com.carelio.worker.entity.WorkerStatus;
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class WorkerResponse {
+
+    private Long id;
+    private Long userId;
+    private String username;
+    private String bio;
+    private long totalJobs;
+    private WorkerStatus status;
+    private List<WorkerSkillResponse> skills;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+==========./v2/src/main/java/com/carelio/worker/dto/WorkerSkillResponse.java
+package com.carelio.worker.dto;
+
+import com.carelio.worker.entity.ServiceSkillCode;
+import com.carelio.worker.entity.SkillLevel;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class WorkerSkillResponse {
+
+    private Long id;
+    private ServiceSkillCode skillCode;
+    private Long categoryId;
+    private String categoryName;
+    private Integer yearsExperience;
+    private SkillLevel skillLevel;
+}
+==========./v2/src/main/java/com/carelio/worker/entity/ServiceSkillCode.java
+package com.carelio.worker.entity;
+
+public enum ServiceSkillCode {
+    ELECTRICAL_REPAIR,
+    PLUMBING,
+    APPLIANCE_REPAIR,
+    HVAC,
+    CARPENTRY,
+    PAINTING,
+    GENERAL_MAINTENANCE
+}
+==========./v2/src/main/java/com/carelio/worker/entity/SkillLevel.java
+package com.carelio.worker.entity;
+
+public enum SkillLevel {
+    BEGINNER,
+    INTERMEDIATE,
+    ADVANCED,
+    EXPERT
+}
+==========./v2/src/main/java/com/carelio/worker/entity/Worker.java
+package com.carelio.worker.entity;
+
+import com.carelio.common.BaseEntity;
+import com.carelio.user.entity.User;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "workers")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Worker extends BaseEntity {
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    private User user;
+
+    private String bio;
+
+    @Column(name = "total_jobs")
+    @Builder.Default
+    private long totalJobs = 0;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private WorkerStatus status = WorkerStatus.AVAILABLE;
+
+    @OneToMany(mappedBy = "worker", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<WorkerSkill> skills = new ArrayList<>();
+}
+==========./v2/src/main/java/com/carelio/worker/entity/WorkerSkill.java
+package com.carelio.worker.entity;
+
+import com.carelio.equipment.entity.EquipmentCategory;
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "worker_skills",
+        uniqueConstraints = @UniqueConstraint(
+                columnNames = {"worker_id", "skill_code", "category_id"}))
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class WorkerSkill {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "worker_id", nullable = false)
+    private Worker worker;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "skill_code", nullable = false)
+    private ServiceSkillCode skillCode;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)
+    private EquipmentCategory category;
+
+    @Column(name = "years_experience")
+    private Integer yearsExperience;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "skill_level", nullable = false)
+    private SkillLevel skillLevel;
+}
+==========./v2/src/main/java/com/carelio/worker/entity/WorkerStatus.java
+package com.carelio.worker.entity;
+
+public enum WorkerStatus {
+    AVAILABLE,
+    BUSY,
+    OFFLINE
+}
+==========./v2/src/main/java/com/carelio/worker/mapper/WorkerMapper.java
+package com.carelio.worker.mapper;
+
+import com.carelio.worker.dto.WorkerResponse;
+import com.carelio.worker.dto.WorkerSkillResponse;
+import com.carelio.worker.entity.Worker;
+import com.carelio.worker.entity.WorkerSkill;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+import java.util.List;
+
+@Mapper(componentModel = "spring")
+public interface WorkerMapper {
+
+    @Mapping(target = "userId", source = "user.id")
+    @Mapping(target = "username", source = "user.username")
+    WorkerResponse toResponse(Worker worker);
+
+    List<WorkerResponse> toResponseList(List<Worker> workers);
+
+    @Mapping(target = "categoryId", source = "category.id")
+    @Mapping(target = "categoryName", source = "category.name")
+    WorkerSkillResponse toSkillResponse(WorkerSkill skill);
+
+    List<WorkerSkillResponse> toSkillResponseList(List<WorkerSkill> skills);
+}
+==========./v2/src/main/java/com/carelio/worker/repository/WorkerRepository.java
+package com.carelio.worker.repository;
+
+import com.carelio.worker.entity.Worker;
+import com.carelio.worker.entity.WorkerStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface WorkerRepository extends JpaRepository<Worker, Long> {
+
+    Page<Worker> findAllByDeletedFalse(Pageable pageable);
+
+    Page<Worker> findAllByStatusAndDeletedFalse(WorkerStatus status, Pageable pageable);
+
+    Optional<Worker> findByIdAndDeletedFalse(Long id);
+
+    Optional<Worker> findByUserIdAndDeletedFalse(Long userId);
+
+    boolean existsByUserId(Long userId);
+}
+==========./v2/src/main/java/com/carelio/worker/repository/WorkerSkillRepository.java
+package com.carelio.worker.repository;
+
+import com.carelio.worker.entity.WorkerSkill;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface WorkerSkillRepository extends JpaRepository<WorkerSkill, Long> {
+}
+==========./v2/src/main/java/com/carelio/worker/service/WorkerService.java
+package com.carelio.worker.service;
+
+import com.carelio.common.PageResponse;
+import com.carelio.common.exception.BusinessRuleException;
+import com.carelio.common.exception.DuplicateResourceException;
+import com.carelio.common.exception.ResourceNotFoundException;
+import com.carelio.equipment.entity.EquipmentCategory;
+import com.carelio.equipment.service.EquipmentCategoryService;
+import com.carelio.user.entity.RoleCode;
+import com.carelio.user.entity.User;
+import com.carelio.user.service.UserService;
+import com.carelio.worker.dto.*;
+import com.carelio.worker.entity.Worker;
+import com.carelio.worker.entity.WorkerSkill;
+import com.carelio.worker.entity.WorkerStatus;
+import com.carelio.worker.mapper.WorkerMapper;
+import com.carelio.worker.repository.WorkerRepository;
+import com.carelio.worker.repository.WorkerSkillRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class WorkerService {
+
+    private final WorkerRepository workerRepository;
+    private final WorkerSkillRepository workerSkillRepository;
+    private final WorkerMapper workerMapper;
+    private final UserService userService;
+    private final EquipmentCategoryService categoryService;
+
+    public PageResponse<WorkerResponse> getAll(Pageable pageable) {
+        Page<Worker> page = workerRepository.findAllByDeletedFalse(pageable);
+        List<WorkerResponse> content = workerMapper.toResponseList(page.getContent());
+        return PageResponse.of(page, content);
+    }
+
+    public PageResponse<WorkerResponse> getAvailable(Pageable pageable) {
+        Page<Worker> page = workerRepository.findAllByStatusAndDeletedFalse(
+                WorkerStatus.AVAILABLE, pageable);
+        List<WorkerResponse> content = workerMapper.toResponseList(page.getContent());
+        return PageResponse.of(page, content);
+    }
+
+    public WorkerResponse getById(Long id) {
+        return workerMapper.toResponse(findActiveOrThrow(id));
+    }
+
+    @Transactional
+    public WorkerResponse create(CreateWorkerRequest request) {
+        if (workerRepository.existsByUserId(request.getUserId())) {
+            throw new DuplicateResourceException(
+                    "Worker profile already exists for user: " + request.getUserId());
+        }
+
+        User user = userService.findActiveOrThrow(request.getUserId());
+        user.getRoles().add(RoleCode.WORKER);
+
+        Worker worker = Worker.builder()
+                .user(user)
+                .bio(request.getBio())
+                .build();
+
+        return workerMapper.toResponse(workerRepository.save(worker));
+    }
+
+    @Transactional
+    public WorkerResponse update(Long id, UpdateWorkerRequest request) {
+        Worker worker = findActiveOrThrow(id);
+
+        if (request.getBio() != null) worker.setBio(request.getBio());
+        if (request.getStatus() != null) worker.setStatus(request.getStatus());
+
+        return workerMapper.toResponse(workerRepository.save(worker));
+    }
+
+    @Transactional
+    public WorkerResponse addSkill(Long workerId, AddWorkerSkillRequest request) {
+        Worker worker = findActiveOrThrow(workerId);
+        EquipmentCategory category = categoryService.findOrThrow(request.getCategoryId());
+
+        boolean duplicate = worker.getSkills().stream().anyMatch(s ->
+                s.getSkillCode() == request.getSkillCode()
+                        && s.getCategory().getId().equals(request.getCategoryId()));
+        if (duplicate) {
+            throw new DuplicateResourceException("Worker already has this skill for this category");
+        }
+
+        WorkerSkill skill = WorkerSkill.builder()
+                .worker(worker)
+                .skillCode(request.getSkillCode())
+                .category(category)
+                .yearsExperience(request.getYearsExperience())
+                .skillLevel(request.getSkillLevel())
+                .build();
+
+        worker.getSkills().add(skill);
+        return workerMapper.toResponse(workerRepository.save(worker));
+    }
+
+    @Transactional
+    public WorkerResponse removeSkill(Long workerId, Long skillId) {
+        Worker worker = findActiveOrThrow(workerId);
+        boolean removed = worker.getSkills().removeIf(s -> s.getId().equals(skillId));
+        if (!removed) {
+            throw new ResourceNotFoundException("WorkerSkill", skillId);
+        }
+        return workerMapper.toResponse(workerRepository.save(worker));
+    }
+
+    public Worker findActiveOrThrow(Long id) {
+        return workerRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Worker", id));
+    }
+
+    public Worker findByUserIdOrThrow(Long userId) {
+        return workerRepository.findByUserIdAndDeletedFalse(userId)
+                .orElseThrow(() -> new BusinessRuleException(
+                        "No worker profile found for user: " + userId));
+    }
+}
+==========./v2/src/main/resources/application-dev.properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/carelio
+spring.datasource.username=postgres
+spring.datasource.password=postgres
+
+spring.jpa.show-sql=true
+==========./v2/src/main/resources/application.properties
+spring.application.name=Carelio
+spring.profiles.active=${SPRING_PROFILES_ACTIVE:dev}
+
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USER}
+spring.datasource.password=${DB_PASSWORD}
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+
+springdoc.swagger-ui.path=/swagger-ui.html
+springdoc.api-docs.path=/v3/api-docs
+==========./v2/src/test/java/com/carelio/CarelioApplicationTests.java
+package com.carelio;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+
+@SpringBootTest
+@ActiveProfiles("dev")
+class CarelioApplicationTests {
+
+    @Test
+    void contextLoads() {
+    }
+}
