@@ -1,68 +1,88 @@
-package com.amigoscode.carelio.room.service;
+package com.Carelio.household_service.service;
 
-import com.amigoscode.carelio.room.dto.CreateRoomRequest;
-import com.amigoscode.carelio.room.dto.RoomResponse;
-import com.amigoscode.carelio.room.dto.UpdateRoomRequest;
-import com.amigoscode.carelio.room.mapper.RoomMapper;
+
+import com.Carelio.household_service.dto.request.CreateRoomRequest;
+import com.Carelio.household_service.dto.request.UpdateRoomRequest;
+import com.Carelio.household_service.dto.response.RoomResponse;
+import com.Carelio.household_service.entity.Room;
+import com.Carelio.household_service.mapper.RoomMapper;
+import com.Carelio.household_service.repository.RoomRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import com.amigoscode.carelio.room.entity.Room;
-import com.amigoscode.carelio.room.repository.RoomRepository;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.PathVariable;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class RoomService
 {
 
     private final RoomRepository roomRepository;
     private final RoomMapper roomMapper;
 
-    public List<Room> getAll()
+    public List<RoomResponse> getAll(Long ownerId)
     {
-        return roomRepository.findAllByDeletedFalse();
+        log.info("Get rooms by ownerId = {}", ownerId);
+//        List<Room> rooms = roomRepository.findByOwnerIdAndDeletedFalse(ownerId);
+        List<Room> rooms = roomRepository.findByOwnerId(ownerId);
+
+        log.info("Found {} rooms", rooms.size());
+
+        return roomMapper.toResponseList(rooms);
     }
 
-    public Room getById(Long id)
+    public RoomResponse getById(Long ownerId, Long roomId)
     {
-        return roomRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Room not found"));
+        Room room = roomRepository.findByIdAndOwnerId(roomId, ownerId)
+                .orElseThrow(() -> new EntityNotFoundException("Room not found with id: " +  roomId));
+        return roomMapper.toResponse(room);
     }
 
     @Transactional
-    public Room create(CreateRoomRequest request)
+    public RoomResponse createRoom(Long ownerId, CreateRoomRequest request)
     {
         Room room = roomMapper.toEntity(request);
-        room.setCreatedAt(LocalDateTime.now());
-        return roomRepository.save(room);
-    }
-    @Transactional
-    public Room softDelete(Long id)
-    {
-        Room room = getById(id);
-        if(!room.getEquipments().isEmpty())
-        {
-            throw new RuntimeException("Cannot delete this room because it has equipments");
-        }
-        room.setDeleted(true);
-        return roomRepository.save(room);
+        room.setOwnerId(ownerId);
+        Room savedRoom = roomRepository.save(room);
+        log.info(savedRoom.getOwnerId() + " " + room.getOwnerId());
+        log.info("Room id {} created", savedRoom.getId());
+        return roomMapper.toResponse(savedRoom);
     }
 
     @Transactional
-    public Room update(Long id, UpdateRoomRequest req)
+    public RoomResponse updateRoom(Long ownerId, Long roomId, UpdateRoomRequest req)
     {
-        Room room = getById(id);
+        Room room = roomRepository.findByIdAndOwnerId(roomId, ownerId)
+                .orElseThrow(() -> new EntityNotFoundException("Room not found with id: " +  roomId));
 
         if (req.getName() != null) room.setName(req.getName());
         if (req.getDescription() != null) room.setDescription(req.getDescription());
         if (req.getFloor() != null) room.setFloor(req.getFloor());
 
-        room.setUpdatedAt(LocalDateTime.now());
-        return roomRepository.save(room);
+        Room savedRoom = roomRepository.save(room);
+        log.info("Room id {} updated", savedRoom.getId());
+
+        return roomMapper.toResponse(savedRoom);
     }
+
+    @Transactional
+    public RoomResponse softDelete(Long id)
+    {
+        Room room = roomRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Room not found with id: " +  id));
+        if(!room.getEquipments().isEmpty())
+        {
+            throw new RuntimeException("Cannot delete this room because it has equipments");
+        }
+        room.setDeleted(true);
+        Room savedRoom = roomRepository.save(room);
+        log.info("Room id {} deleted", savedRoom.getId());
+        return roomMapper.toResponse(savedRoom);
+    }
+
 }

@@ -1,52 +1,52 @@
-package com.amigoscode.carelio.equipment.service;
+package com.Carelio.household_service.service;
 
-import com.amigoscode.carelio.equipment.entity.Equipment;
-import com.amigoscode.carelio.equipment.entity.EquipmentCategory;
-import com.amigoscode.carelio.equipment.repository.EquipmentCategoryRepository;
+
+import com.Carelio.household_service.dto.request.CreateCategoryRequest;
+import com.Carelio.household_service.dto.response.CategoryResponse;
+import com.Carelio.household_service.entity.EquipmentCategory;
+import com.Carelio.household_service.mapper.CategoryMapperSpring;
+import com.Carelio.household_service.repository.EquipmentCategoryRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class EquipmentCategoryService
 {
     private final EquipmentCategoryRepository equipmentCategoryRepository;
+    private final CategoryMapperSpring categoryMapper;
 
-    public List<EquipmentCategory> getAll()
+    public List<CategoryResponse> getAll()
     {
-        return equipmentCategoryRepository.findAll();
+        return categoryMapper.toResponseList( equipmentCategoryRepository.findAll());
     }
 
-    public EquipmentCategory getById(Long id)
+    public CategoryResponse getById(Long id)
     {
-        return equipmentCategoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Equipment category not found"));
+        EquipmentCategory ec = equipmentCategoryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Equipment category not found with id: " + id));
+        return categoryMapper.toResponse(ec);
     }
 
-    public EquipmentCategory create(EquipmentCategory equipmentCategory)
+    public CategoryResponse createCategory(CreateCategoryRequest req)
     {
-        return equipmentCategoryRepository.save(equipmentCategory);
+        EquipmentCategory ec = categoryMapper.toEntity(req);
+        EquipmentCategory saved = equipmentCategoryRepository.save(ec);
+        log.info("Category created  with id: {}", saved.getId());
+        return categoryMapper.toResponse(saved);
     }
 
-    public EquipmentCategory update(Long id, EquipmentCategory equipmentCategory)
-    {
-        EquipmentCategory ec = getById(id);
-        ec.setName(equipmentCategory.getName());
-        ec.setUpdatedAt(LocalDateTime.now());
-        return equipmentCategoryRepository.save(ec);
-    }
 
-    public void delete(Long id)
-    {
-        EquipmentCategory ec = getById(id);
-        if (!ec.getEquipments().isEmpty()) {
-            throw new RuntimeException("Equipment category has equipment(s)");
-        }
-        equipmentCategoryRepository.delete(ec);
-    }
+//    public void delete(Long id)
+//    {
+//        EquipmentCategory ec = getById(id);
+//        if (!ec.getEquipments().isEmpty()) {
+//            throw new RuntimeException("Equipment category has equipment(s)");
+//        }
+//        equipmentCategoryRepository.delete(ec);
+//    }
 }

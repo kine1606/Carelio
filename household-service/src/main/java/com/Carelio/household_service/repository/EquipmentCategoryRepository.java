@@ -1,9 +1,10 @@
-package com.amigoscode.carelio.equipment.repository;
+package com.Carelio.household_service.repository;
 
-import com.amigoscode.carelio.equipment.entity.EquipmentCategory;
-import jakarta.persistence.criteria.CriteriaBuilder;
+
+import com.Carelio.household_service.entity.EquipmentCategory;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface EquipmentCategoryRepository extends JpaRepository<EquipmentCategory, Long> { }
+public interface EquipmentCategoryRepository extends JpaRepository<EquipmentCategory, Long>
+{ }
