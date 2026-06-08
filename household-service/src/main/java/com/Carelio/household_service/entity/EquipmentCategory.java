@@ -29,7 +29,7 @@ public class EquipmentCategory
 //    private Set<WorkerSkill> workerSkills;
 
     @CreatedDate
-    @Column(nullable = false, updatable = false)
+//    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @LastModifiedDate

@@ -71,9 +71,9 @@ public class RoomService
     }
 
     @Transactional
-    public RoomResponse softDelete(Long id)
+    public RoomResponse softDelete(Long ownerId, Long id)
     {
-        Room room = roomRepository.findById(id)
+        Room room = roomRepository.findByIdAndOwnerId(id, ownerId)
                 .orElseThrow(() -> new EntityNotFoundException("Room not found with id: " +  id));
         if(!room.getEquipments().isEmpty())
         {

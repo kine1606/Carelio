@@ -55,8 +55,10 @@ public class RoomController
 
 //     DELETE /api/rooms/{id}
     @DeleteMapping("/{id}")
-    public RoomResponse delete(@PathVariable Long id)
+    public RoomResponse delete(
+            @RequestHeader("X-USER-ID") Long ownerId,
+            @PathVariable Long id)
     {
-        return roomService.softDelete(id);
+        return roomService.softDelete(ownerId, id);
     }
 }

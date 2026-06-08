@@ -1,6 +1,7 @@
 package com.Carelio.household_service.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Positive;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -26,6 +27,7 @@ public class Room
     @Column(nullable = false)
     private String name;
 
+    @Positive
     private Integer floor;
     private String description;
 
@@ -34,7 +36,7 @@ public class Room
     private List<Equipment> equipments;
 
     @CreatedDate
-    @Column(nullable = false, updatable = false)
+//    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @LastModifiedDate
