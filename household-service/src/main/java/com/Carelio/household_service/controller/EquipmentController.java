@@ -1,57 +1,64 @@
-package com.amigoscode.carelio.equipment.controller;
+package com.Carelio.household_service.controller;
 
-import com.amigoscode.carelio.equipment.dto.request.CreateEquipmentSimpleRequest;
-import com.amigoscode.carelio.equipment.dto.response.EquipmentResponse;
-import com.amigoscode.carelio.equipment.dto.request.UpdateEquipmentRequest;
-import com.amigoscode.carelio.equipment.mapper.EquipmentMapper;
-import com.amigoscode.carelio.equipment.service.EquipmentService;
+import com.Carelio.household_service.dto.request.CreateEquipmentRequest;
+import com.Carelio.household_service.dto.request.UpdateEquipmentRequest;
+import com.Carelio.household_service.dto.response.EquipmentResponse;
+import com.Carelio.household_service.mapper.EquipmentMapper;
+import com.Carelio.household_service.service.EquipmentService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/equipment")
+@RequiredArgsConstructor
+@RequestMapping("/api/equipments")
 public class EquipmentController
 {
     private final EquipmentService equipmentService;
     private final EquipmentMapper equipmentMapper;
 
-    public EquipmentController(EquipmentService equipmentService, EquipmentMapper equipmentMapper)
-    {
-        this.equipmentService = equipmentService;
-        this.equipmentMapper = equipmentMapper;
-    }
-
+    // GET /api/equipments
     @GetMapping
-    public List<EquipmentResponse> getEquipments()
+    public List<EquipmentResponse> getEquipments(
+            @RequestHeader("X-USER-ID") Long ownerId
+    )
     {
-        return equipmentMapper.toResponseList(equipmentService.getAll());
+        return equipmentService.getAll(ownerId);
     }
 
-    @GetMapping("/{id}")
-    public EquipmentResponse getEquipmentById(@PathVariable Long id)
+    // GET /api/equipments/{equipmentId}
+    @GetMapping("/{equipmentId}")
+    public EquipmentResponse getEquipmentById(
+            @RequestHeader("X-USER-ID") Long ownerId,
+            @PathVariable Long equipmentId)
     {
-        return equipmentMapper.toResponse(equipmentService.getById(id));
+        return equipmentService.getById(ownerId, equipmentId);
     }
+
+    // POST /api/equipments
     @PostMapping
-    public EquipmentResponse create(@RequestBody CreateEquipmentSimpleRequest res)
+    public EquipmentResponse createEquipment(
+            @RequestHeader("X-USER-ID") Long ownerId,
+            @RequestBody CreateEquipmentRequest res)
     {
-        return equipmentMapper.toResponse(equipmentService.create(res));
+        return equipmentService.createEquipment(ownerId, res);
     }
 
     @PatchMapping("/{id}")
-    public EquipmentResponse update(@PathVariable Long id,
-                                    @RequestBody UpdateEquipmentRequest res)
+    public EquipmentResponse updateEquipment(
+            @RequestHeader("X-USER-ID") Long ownerId,
+            @PathVariable Long id,
+            @RequestBody UpdateEquipmentRequest res)
     {
-        return equipmentMapper.toResponse(equipmentService.update(id, res));
+        return equipmentService.updateEquipment(ownerId, id, res);
     }
 
     // not done
-    @DeleteMapping("/{id}")
-    public void delete(@PathVariable Long id)
-    {
-        equipmentService.delete(id);
-    }
+//    @DeleteMapping("/{id}")
+//    public void delete(@PathVariable Long id)
+//    {
+//        equipmentService.delete(id);
+//    }
 }
 

@@ -1,20 +1,22 @@
-package com.amigoscode.carelio.room.mapper;
+package com.Carelio.household_service.mapper;
 
-import com.amigoscode.carelio.room.dto.*;
-import com.amigoscode.carelio.room.entity.Room;
-import org.mapstruct.*;
+
+import com.Carelio.household_service.dto.request.CreateRoomRequest;
+import com.Carelio.household_service.dto.response.RoomResponse;
+import com.Carelio.household_service.entity.Room;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
 import java.util.List;
 
 @Mapper(componentModel = "spring")
-public interface RoomMapper {
+public interface RoomMapper
+{
 
     Room toEntity(CreateRoomRequest request);
 
-    void updateEntity(UpdateRoomRequest request, @MappingTarget Room entity);
-
+    @Mapping(source = "ownerId", target = "ownerId")
+    @Mapping(source = "description", target = "description")
     RoomResponse toResponse(Room room);
-
-    RoomDetailResponse toDetailResponse(Room room);
     List<RoomResponse> toResponseList(List<Room> rooms);
 }

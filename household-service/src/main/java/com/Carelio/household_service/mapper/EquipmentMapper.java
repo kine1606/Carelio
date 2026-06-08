@@ -1,25 +1,16 @@
-package com.amigoscode.carelio.equipment.mapper;
+package com.Carelio.household_service.mapper;
 
-
-import com.amigoscode.carelio.equipment.dto.request.CreateEquipmentRequest;
-import com.amigoscode.carelio.equipment.dto.request.CreateEquipmentSimpleRequest;
-import com.amigoscode.carelio.equipment.dto.request.UpdateEquipmentRequest;
-import com.amigoscode.carelio.equipment.dto.response.EquipmentResponse;
-import com.amigoscode.carelio.equipment.entity.Equipment;
-import org.mapstruct.*;
+import com.Carelio.household_service.dto.request.CreateEquipmentRequest;
+import com.Carelio.household_service.dto.response.EquipmentResponse;
+import com.Carelio.household_service.entity.Equipment;
+import org.mapstruct.Mapper;
 
 import java.util.List;
 
 @Mapper(componentModel = "spring")
-public interface EquipmentMapper {
-
+public interface EquipmentMapper
+{
     Equipment toEntity(CreateEquipmentRequest request);
-    Equipment toEntity(UpdateEquipmentRequest request);
-    Equipment toEntity(CreateEquipmentSimpleRequest request);
-
-    void updateEntity(UpdateEquipmentRequest request, @MappingTarget Equipment entity);
-
-//    EquipmentResponse toResponse(Equipment Equipment);
     EquipmentResponse toResponse(Equipment Equipment);
     List<EquipmentResponse> toResponseList(List<Equipment> Equipments);
 }

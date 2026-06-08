@@ -1,56 +1,62 @@
-package com.amigoscode.carelio.room.controller;
+package com.Carelio.household_service.controller;
 
-import com.amigoscode.carelio.room.dto.CreateRoomRequest;
-import com.amigoscode.carelio.room.dto.RoomDetailResponse;
-import com.amigoscode.carelio.room.dto.RoomResponse;
-import com.amigoscode.carelio.room.dto.UpdateRoomRequest;
-import com.amigoscode.carelio.room.mapper.RoomMapper;
+import com.Carelio.household_service.dto.request.CreateRoomRequest;
+import com.Carelio.household_service.dto.request.UpdateRoomRequest;
+import com.Carelio.household_service.dto.response.RoomResponse;
+import com.Carelio.household_service.service.RoomService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.amigoscode.carelio.room.entity.Room;
-import com.amigoscode.carelio.room.service.RoomService;
+
 import java.util.List;
 
 @RestController
-@RequestMapping("/room")
-public class RoomController {
+@RequestMapping("/api/rooms")
+@RequiredArgsConstructor
+public class RoomController
+{
 
     private final RoomService roomService;
-    private final RoomMapper roomMapper;
 
-    public RoomController(RoomService roomService, RoomMapper roomMapper)
-    {
-        this.roomService = roomService;
-        this.roomMapper = roomMapper;
-    }
-
+    // GET /api/rooms
     @GetMapping
-    public List<RoomResponse> getAll() {
-        List<Room> rooms = roomService.getAll();
-        return roomMapper.toResponseList(rooms);
+    public List<RoomResponse> getAll(
+            @RequestHeader("X-USER-ID") Long ownerId)
+    {
+        return roomService.getAll(ownerId);
     }
 
+    // GET /api/rooms/{id}
     @GetMapping("/{id}")
-    public RoomDetailResponse getById(@PathVariable Long id) {
-        Room room = roomService.getById(id);
-        return roomMapper.toDetailResponse(room);
+    public RoomResponse getById(
+            @RequestHeader("X-USER-ID") Long ownerId,
+            @PathVariable Long id)
+    {
+        return roomService.getById(ownerId, id);
     }
 
+    // POST /api/rooms
     @PostMapping
-    public RoomResponse create(@RequestBody CreateRoomRequest request)
+    public RoomResponse createRoom(
+            @RequestHeader("X-USER-ID") Long ownerId,
+            @RequestBody CreateRoomRequest request)
     {
-        return roomMapper.toResponse(roomService.create(request));
+        return roomService.createRoom(ownerId, request);
     }
 
-    @PatchMapping("/{id}")
-    public RoomResponse update(@PathVariable Long id, @RequestBody UpdateRoomRequest request)
+    // PATCH /api/rooms/{id}
+    @PatchMapping("/{roomId}")
+    public RoomResponse updateRoom(
+            @RequestHeader("X-USER-ID") Long ownerId,
+            @PathVariable Long roomId,
+            @RequestBody UpdateRoomRequest request)
     {
-        return roomMapper.toResponse(roomService.update(id, request));
+        return roomService.updateRoom(ownerId, roomId, request);
     }
+
+//     DELETE /api/rooms/{id}
     @DeleteMapping("/{id}")
     public RoomResponse delete(@PathVariable Long id)
     {
-       return roomMapper.toResponse(roomService.softDelete(id));
+        return roomService.softDelete(id);
     }
 }
