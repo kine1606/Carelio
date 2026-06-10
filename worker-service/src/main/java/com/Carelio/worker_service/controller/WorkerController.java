@@ -15,32 +15,32 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api")
+@RequestMapping("/api/workers")
 public class WorkerController {
 
     private final WorkerService workerService;
 
     // POST /api/workers
-    @PostMapping("/workers")
+    @PostMapping
     public ResponseEntity<WorkerProfileResponse> createWorker(@RequestBody @Valid WorkerProfileRequest request) {
         WorkerProfileResponse response = workerService.createWorkerProfile(request.getUserId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     // GET /api/workers
-    @GetMapping("/workers")
+    @GetMapping
     public ResponseEntity<List<WorkerProfileResponse>> getAllWorkers() {
         return ResponseEntity.ok(workerService.getAllWorkerProfiles());
     }
 
     // GET /api/workers/{workerId}
-    @GetMapping("/workers/{workerId}")
+    @GetMapping("/{workerId}")
     public ResponseEntity<WorkerProfileResponse> getWorkerById(@PathVariable Long workerId) {
         return ResponseEntity.ok(workerService.getById(workerId));
     }
 
     // POST /api/workers/{workerId}/skills
-    @PostMapping("/workers/{workerId}/skills")
+    @PostMapping("/{workerId}/skills")
     public ResponseEntity<WorkerSkillResponse> addWorkerSkill(
             @PathVariable Long workerId,
             @RequestBody @Valid WorkerSkillRequest request
@@ -50,7 +50,7 @@ public class WorkerController {
     }
 
     // GET /api/workers/{workerId}/skills
-    @GetMapping("/workers/{workerId}/skills")
+    @GetMapping("/{workerId}/skills")
     public ResponseEntity<List<WorkerSkillResponse>> getWorkerSkills(@PathVariable Long workerId) {
         return ResponseEntity.ok(workerService.getWorkerSkill(workerId));
     }

@@ -20,14 +20,14 @@ public class ServiceSkillController {
 
     // POST /api/service-skills
     @PostMapping
-    public ResponseEntity<ServiceSkillResponse> create(@RequestBody @Valid ServiceSkillRequest request) {
-        ServiceSkillResponse response = serviceSkillService.create(request);
+    public ResponseEntity<ServiceSkillResponse> createServiceSkill(@RequestBody @Valid ServiceSkillRequest request) {
+        ServiceSkillResponse response = serviceSkillService.createServiceSkill(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     // GET /api/service-skills
     @GetMapping
-    public ResponseEntity<List<ServiceSkillResponse>> getAll() {
-        return ResponseEntity.ok(serviceSkillService.getAll());
+    public ResponseEntity<List<ServiceSkillResponse>> getServiceSkills() {
+        return ResponseEntity.ok(serviceSkillService.getServiceSkills());
     }
 }
