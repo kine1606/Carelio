@@ -36,11 +36,11 @@ public class WorkerSkillSeeder implements CommandLineRunner {
             return;
         }
 
-        ServiceSkill repair = serviceSkillRepository.findByServiceSkillCodeIgnoreCase(ServiceSkillCode.REPAIR)
+        ServiceSkill repair = serviceSkillRepository.findByServiceSkillCode(ServiceSkillCode.REPAIR)
                 .orElse(null);
-        ServiceSkill cleaning = serviceSkillRepository.findByServiceSkillCodeIgnoreCase(ServiceSkillCode.CLEANING)
+        ServiceSkill cleaning = serviceSkillRepository.findByServiceSkillCode(ServiceSkillCode.CLEANING)
                 .orElse(null);
-        ServiceSkill installation = serviceSkillRepository.findByServiceSkillCodeIgnoreCase(ServiceSkillCode.INSTALLATION)
+        ServiceSkill installation = serviceSkillRepository.findByServiceSkillCode(ServiceSkillCode.INSTALLATION)
                 .orElse(null);
 
         List<WorkerSkill> seeds = new ArrayList<>();

@@ -30,7 +30,6 @@ public interface WorkerSkillMapper
         return WorkerProfileSummaryResponse.builder()
                 .id(profile.getId())
                 .userId(profile.getUserId())
-                .bio(profile.getBio())
                 .build();
     }
 
