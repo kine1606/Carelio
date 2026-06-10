@@ -53,7 +53,13 @@ public class WorkerSkill
     @PrePersist
     public void prePersist()
     {
-        if (skillLevel == null) skillLevel = SkillLevel.BEGINNER;
+        if (skillLevel == null) ;
+        if(yearExperience > 2)
+            skillLevel = SkillLevel.ADVANCED;
+        else if (yearExperience <= 2 && yearExperience >= 1)
+            skillLevel = SkillLevel.INTERMEDIATE;
+        else
+            skillLevel = SkillLevel.BEGINNER;
         createdAt = LocalDateTime.now();
     }
 }

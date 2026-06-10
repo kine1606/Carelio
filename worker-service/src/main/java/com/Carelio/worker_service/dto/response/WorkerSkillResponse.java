@@ -1,6 +1,5 @@
 package com.Carelio.worker_service.dto.response;
 
-import com.Carelio.worker_service.entity.SkillLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,5 +20,4 @@ public class WorkerSkillResponse
     private Long equipmentCategoryId;
 
     private Integer yearExperience;
-    private SkillLevel skillLevel;
 }

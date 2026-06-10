@@ -17,6 +17,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -35,6 +36,7 @@ public class WorkerService
     private final WorkerSkillMapper workerSkillMapper;
 
     // POST /api/workers
+    @Transactional
     public WorkerProfileResponse createWorkerProfile(Long userId, WorkerProfileRequest workerProfileRequest)
     {
         if (workerProfileRepository.existsByUserId(userId)) {
@@ -63,6 +65,7 @@ public class WorkerService
     }
 
     //    POST /api/workers/{workerId}/skills
+    @Transactional
     public WorkerSkillResponse addWorkerSkill(Long workerId, WorkerSkillRequest request)
     {
         WorkerProfile profile = workerProfileRepository.findById(workerId)
