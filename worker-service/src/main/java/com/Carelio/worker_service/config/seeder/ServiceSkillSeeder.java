@@ -8,13 +8,11 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 
-import java.security.Provider;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
-@Order(2)
+@Order(1)
 public class ServiceSkillSeeder implements CommandLineRunner
 {
 

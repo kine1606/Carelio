@@ -3,7 +3,8 @@
 
 ## Overall Score: 3/10
 
-This is an early-stage learning project with a reasonable package layout, but it has confirmed compile errors, data-losing bugs, zero security, hardcoded credentials committed, and no meaningful tests. It is not production-ready.
+This is an early-stage learning project with a reasonable package layout, but it has confirmed compile errors,
+data-losing bugs, zero security, hardcoded credentials committed, and no meaningful tests. It is not production-ready.
 
 ---
 
@@ -22,7 +23,9 @@ This is an early-stage learning project with a reasonable package layout, but it
 
 ### BUG 1: `Equipment.java` does not compile
 
-`Equipment.java` imports `com.amigoscode.carelio.serviceOrder.entity.ServiceOrder` but the actual package is `com.amigoscode.carelio.service_order.entity`. The project will not compile. `UserAddressInformation.java` and `Worker.java` use the correct import.
+`Equipment.java` imports `com.amigoscode.carelio.serviceOrder.entity.ServiceOrder` but the actual package
+is `com.amigoscode.carelio.service_order.entity`. The project will not compile.
+`UserAddressInformation.java` and `Worker.java` use the correct import.
 
 ### BUG 2: `EquipmentService.delete()` does not persist the soft delete
 
@@ -36,11 +39,15 @@ public void delete(Long id) {
 }
 ```
 
-The entity is fetched, mutated in memory, and discarded. The `getById()` call goes through a class-level `readOnly = true` method, making dirty-checking unreliable. The delete silently does nothing.
+The entity is fetched,
+mutated in memory, and discarded.
+The `getById()` call goes through a class-level `readOnly = true` method,
+making dirty-checking unreliable. The delete silently does nothing.
 
 ### BUG 3: `EquipmentCategoryService` writes inside `readOnly = true`
 
-The class is annotated `@Transactional(readOnly = true)` but `create()`, `update()`, and `delete()` methods have no `@Transactional` override. Writes will either silently fail or throw depending on the driver/DB config.
+The class is annotated `@Transactional(readOnly = true)` but `create()`, `update()`, and `delete()`
+methods have no `@Transactional` override. Writes will either silently fail or throw depending on the driver/DB config.
 
 ### BUG 4: `EquipmentCategoryController` has no URL path
 
@@ -53,8 +60,10 @@ All methods map to `/`, `/{id}`, etc. This collides with other controllers. Shou
 
 ### BUG 5: JPA relationship cardinality mismatches
 
-- **Worker <-> ServiceOrder**: `ServiceOrder` has `@ManyToOne` to `Worker` (many orders per worker), but `Worker` has `@OneToOne(mappedBy = "assignedWorker")`. Should be `@OneToMany`.
-- **UserAddressInformation <-> ServiceOrder**: `ServiceOrder` has `@ManyToOne` to address, but `UserAddressInformation` has `@OneToOne(mappedBy = ...)`. Should be `@OneToMany`.
+- **Worker <-> ServiceOrder**: `ServiceOrder` has `@ManyToOne` to `Worker` (many orders per worker),
+but `Worker` has `@OneToOne(mappedBy = "assignedWorker")`. Should be `@OneToMany`.
+- **UserAddressInformation <-> ServiceOrder**:
+`ServiceOrder` has `@ManyToOne` to address, but `UserAddressInformation` has `@OneToOne(mappedBy = ...)`. Should be `@OneToMany`.
 
 ---
 
@@ -71,11 +80,13 @@ Credentials must never be committed. Use environment variables or Spring profile
 
 ### SEC 2: No authentication or authorization
 
-No Spring Security dependency, no filters, no token validation. Every endpoint is wide open: anyone can create users, assign admin roles, delete rooms.
+No Spring Security dependency, no filters, no token validation.
+Every endpoint is wide open: anyone can create users, assign admin roles, delete rooms.
 
 ### SEC 3: `grantedBy` is a user-supplied query param with no verification
 
-The role assignment endpoint takes `grantedBy` as a raw `Long` query parameter. No check that the caller is actually that user or has permission to grant roles. IDOR / privilege escalation vector.
+The role assignment endpoint takes `grantedBy` as a raw `Long` query parameter.
+No check that the caller is actually that user or has permission to grant roles. IDOR / privilege escalation vector.
 
 ### SEC 4: `create-drop` DDL strategy
 
@@ -125,7 +136,7 @@ Drops and recreates the entire database schema every time the app restarts. All 
 | 13 | `UpdateUserRequest` has no Lombok annotations. Private fields with no accessors. Jackson can't deserialize. |
 | 14 | `UpdateRoomRequest` has `@NotBlank` on `name`. Breaks PATCH semantics where all fields should be optional. |
 | 15 | Dead code: `CreateEquipmentRequest` exists but is never used anywhere. |
-| 16 | Dead code: `UserMapper.updateEntity()` exists but no update endpoint calls it. |
+| 16 | Dead code: `UserMapper.updateEntity()` exists but no update endpoint calls it. | 
 | 17 | Unused import: `org.apache.coyote.BadRequestException` in `UserService`. |
 
 ---

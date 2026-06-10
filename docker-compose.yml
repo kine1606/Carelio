@@ -1,0 +1,29 @@
+services:
+  household-postgres:
+    image: postgres:16
+    container_name: household-postgres
+    environment:
+      POSTGRES_DB: household_db
+      POSTGRES_USER: household_service
+      POSTGRES_PASSWORD: household_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - household_postgres_data:/var/lib/postgresql/data
+
+  worker-postgres:
+    image: postgres:16
+    container_name: worker-postgres
+    environment:
+      POSTGRES_DB: worker_db
+      POSTGRES_USER: worker_service
+      POSTGRES_PASSWORD: worker_password
+    ports:
+      - "5435:5432"
+    volumes:
+      - worker_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  household_postgres_data:
+  worker_postgres_data:
+

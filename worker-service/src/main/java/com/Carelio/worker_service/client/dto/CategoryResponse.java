@@ -1,4 +1,16 @@
 package com.Carelio.worker_service.client.dto;
 
-public class CategoryResponse {
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class CategoryResponse
+{
+    private Long id;
+    private String name;
 }

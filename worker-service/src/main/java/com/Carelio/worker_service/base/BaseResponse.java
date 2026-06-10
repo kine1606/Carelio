@@ -1,4 +1,4 @@
-package com.amigoscode.carelio.base;
+package com.Carelio.worker_service.base;
 
 import lombok.Getter;
 import lombok.Setter;

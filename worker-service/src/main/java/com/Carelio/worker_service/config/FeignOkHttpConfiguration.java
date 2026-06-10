@@ -1,15 +1,17 @@
-package com.SE330_Q22.order_service.config;
+package com.Carelio.worker_service.config;
 
 import feign.Client;
 import feign.okhttp.OkHttpClient;
-import java.time.Duration;
 import okhttp3.OkHttpClient.Builder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Duration;
+
 @Configuration
-public class FeignOkHttpConfiguration {
+public class FeignOkHttpConfiguration
+{
 
     @Bean
     @ConditionalOnMissingBean(okhttp3.OkHttpClient.class)

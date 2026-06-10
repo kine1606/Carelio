@@ -1,4 +1,7 @@
 package com.amigoscode.carelio.room.service;
 
-public class Staff {
-}
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Controller;
+
+@Controller
+public class Staff { }

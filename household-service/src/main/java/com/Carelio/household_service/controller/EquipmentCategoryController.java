@@ -9,8 +9,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@RestController("/api/equipment-category")
-@RequestMapping
+@RestController
+@RequestMapping("/api/equipment-category")
 @RequiredArgsConstructor
 public class EquipmentCategoryController
 {
