@@ -3,10 +3,7 @@ package com.Carelio.worker_service.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Positive;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 
 import java.time.LocalDateTime;
@@ -24,6 +21,7 @@ import java.time.LocalDateTime;
 @Table(name = "worker_skill")
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class WorkerSkill
 {
 
@@ -31,20 +29,16 @@ public class WorkerSkill
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-//    @ManyToOne
-//    @JoinColumn(name = "worker_id", nullable = false)
-//    private Worker worker;
-//
-//    @ManyToOne
-//    @JoinColumn(name = "service_skill_id", nullable = false)
-//    private ServiceSkill serviceSkill;
-//
-//    @ManyToOne
-//    @JoinColumn(name = "equipment_category_id", nullable = false)
-//    private EquipmentCategory equipmentCategory;
+    @ManyToOne(fetch =  FetchType.LAZY)
+    @JoinColumn(name = "worker_id", nullable = false)
+    private WorkerProfile workerProfile;
 
-    private Long workerId;
-    private Long serviceSkillId;
+    @ManyToOne(fetch =  FetchType.LAZY)
+    @JoinColumn(name = "service_skill_id", nullable = false)
+    private ServiceSkill serviceSkill;
+
+    //cross-service
+    // different service so can't use relationship @ManyToOne so we just take id of it.
     private Long equipmentCategoryId;
 
     @Positive

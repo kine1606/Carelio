@@ -22,22 +22,17 @@ public class WorkerProfile
     private Long userId;
 
     private Integer totalJobs;
-
     private Double ratingAvg;
-
     private String bio;
-
-    private String status;
-
+    private WorkerStatus status;
     private LocalDateTime createdAt;
-
     private LocalDateTime updatedAt;
-
+    private boolean deleted = false;
     @PrePersist
     public void prePersist() {
         if (totalJobs == null) totalJobs = 0;
         if (ratingAvg == null) ratingAvg = 0.0;
-        if (status == null) status = "ACTIVE";
+        if (status == null) status = WorkerStatus.AVAILABLE;
 
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
