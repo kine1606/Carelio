@@ -4,8 +4,10 @@ package com.Carelio.household_service.service;
 import com.Carelio.household_service.dto.request.CreateRoomRequest;
 import com.Carelio.household_service.dto.request.UpdateRoomRequest;
 import com.Carelio.household_service.dto.response.RoomResponse;
+import com.Carelio.household_service.entity.House;
 import com.Carelio.household_service.entity.Room;
 import com.Carelio.household_service.mapper.RoomMapper;
+import com.Carelio.household_service.repository.HouseRepository;
 import com.Carelio.household_service.repository.RoomRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -24,40 +26,39 @@ public class RoomService
 
     private final RoomRepository roomRepository;
     private final RoomMapper roomMapper;
-
-    public List<RoomResponse> getAll(Long ownerId)
+    private final HouseRepository houseRepository;
+    public List<RoomResponse> getAll(Long userId)
     {
-        log.info("Get rooms by ownerId = {}", ownerId);
+        log.info("Get rooms by ownerId = {}", userId);
 //        List<Room> rooms = roomRepository.findByOwnerIdAndDeletedFalse(ownerId);
-        List<Room> rooms = roomRepository.findByOwnerId(ownerId);
-
+        List<Room> rooms = roomRepository.findByHouse_UserId(userId);
         log.info("Found {} rooms", rooms.size());
-
         return roomMapper.toResponseList(rooms);
     }
 
-    public RoomResponse getById(Long ownerId, Long roomId)
+    public RoomResponse getById(Long userId, Long roomId)
     {
-        Room room = roomRepository.findByIdAndOwnerId(roomId, ownerId)
+        Room room = roomRepository.findByIdAndHouse_UserId(roomId, userId)
                 .orElseThrow(() -> new EntityNotFoundException("Room not found with id: " +  roomId));
         return roomMapper.toResponse(room);
     }
 
     @Transactional
-    public RoomResponse createRoom(Long ownerId, CreateRoomRequest request)
+    public RoomResponse createRoom(Long userId, CreateRoomRequest request)
     {
+        House house = houseRepository.findByIdAndUserId(request.getHouseId(), userId)
+                .orElseThrow(() -> new EntityNotFoundException("House not found with id: " +  request.getHouseId()));
         Room room = roomMapper.toEntity(request);
-        room.setOwnerId(ownerId);
+        room.setHouse(house);
         Room savedRoom = roomRepository.save(room);
-        log.info(savedRoom.getOwnerId() + " " + room.getOwnerId());
         log.info("Room id {} created", savedRoom.getId());
         return roomMapper.toResponse(savedRoom);
     }
 
     @Transactional
-    public RoomResponse updateRoom(Long ownerId, Long roomId, UpdateRoomRequest req)
+    public RoomResponse updateRoom(Long userId, Long roomId, UpdateRoomRequest req)
     {
-        Room room = roomRepository.findByIdAndOwnerId(roomId, ownerId)
+        Room room = roomRepository.findByIdAndHouse_UserId(roomId, userId)
                 .orElseThrow(() -> new EntityNotFoundException("Room not found with id: " +  roomId));
 
         if (req.getName() != null) room.setName(req.getName());
@@ -73,7 +74,7 @@ public class RoomService
     @Transactional
     public RoomResponse softDelete(Long ownerId, Long id)
     {
-        Room room = roomRepository.findByIdAndOwnerId(id, ownerId)
+        Room room = roomRepository.findByIdAndHouse_UserId(id, ownerId)
                 .orElseThrow(() -> new EntityNotFoundException("Room not found with id: " +  id));
         if(!room.getEquipments().isEmpty())
         {

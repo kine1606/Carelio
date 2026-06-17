@@ -11,10 +11,10 @@ import java.time.LocalDateTime;
 
 @JsonPropertyOrder({
         "id",
-        "ownerId",
         "name",
         "floor",
         "description",
+        "houseId",
         "createdAt",
         "updatedAt"
 })
@@ -25,9 +25,9 @@ import java.time.LocalDateTime;
 public class RoomResponse extends BaseResponse
 {
     private String name;
-    private Long ownerId;
     private Integer floor;
     private String description;
+    private Long houseId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -22,6 +22,8 @@ public class Room
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long userId;
+
     @Column(nullable = false)
     private String name;
 
@@ -34,9 +36,10 @@ public class Room
     private List<Equipment> equipments;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "house_id", nullable = false)
     private House house;
+
     @CreatedDate
-//    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @LastModifiedDate

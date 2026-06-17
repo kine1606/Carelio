@@ -12,7 +12,7 @@ public class CreateRoomRequest
 {
     @NotBlank(message = "Name is required")
     private String name;
-
+    private Long houseId;
     private Integer floor;
     private String description;
 

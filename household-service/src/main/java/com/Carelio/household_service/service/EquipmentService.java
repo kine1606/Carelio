@@ -30,56 +30,58 @@ public class EquipmentService
     private final EquipmentMapper equipmentMapper;
     private final EquipmentCategoryRepository  equipmentCategoryRepository;
 
-    public List<EquipmentResponse> getAll(Long ownerId)
+    public List<EquipmentResponse> getAll(Long userId)
     {
-        List<Equipment> equipments = equipmentRepository.findAllByDeletedFalseAndOwnerId(ownerId);
+        List<Equipment> equipments = equipmentRepository.findAllByDeletedFalseAndRoom_House_UserId(userId);
+        log.info("found {} equipment with userId: {}",equipments.size(), userId);
         return equipmentMapper.toResponseList(equipments);
     }
 
-    public EquipmentResponse getById(Long ownerId, Long id)
+    public EquipmentResponse getById(Long userId, Long id)
     {
-        Equipment e = equipmentRepository.findByIdAndOwnerId(id, ownerId)
+        Equipment e = equipmentRepository.findByIdAndRoom_House_UserId(id, userId)
                 .orElseThrow(() -> new EntityNotFoundException("Equipment not found with id:" + id));
+        log.info("Equipment found with id:{}", id);
         return equipmentMapper.toResponse(e);
     }
 
-    public List<EquipmentResponse> getEquipmentsByRoom(Long ownerId, Long roomId)
+    public List<EquipmentResponse> getEquipmentsByRoom(Long userId, Long roomId)
     {
-        if(!roomRepository.existsByIdAndOwnerId(roomId, ownerId))
-        {
-            throw new RuntimeException("Room not found or not owned by user");
-        }
-        List<Equipment> equipmentList = equipmentRepository.findByRoomIdAndOwnerId(roomId, ownerId)
-                .stream().toList();
+        Room room = roomRepository
+                .findByIdAndHouse_UserId(roomId, userId)
+                .orElseThrow(() -> new EntityNotFoundException("Room not found"));
 
+        List<Equipment> equipmentList =
+                equipmentRepository.findByRoom_Id(room.getId());
+        log.info("found {} equipment with roomId: {}",equipmentList.size(), roomId);
         return  equipmentMapper.toResponseList(equipmentList);
     }
 
     @Transactional
-    public EquipmentResponse createEquipment(Long ownerId, CreateEquipmentRequest req)
+    public EquipmentResponse createEquipment(Long userId, CreateEquipmentRequest req)
     {
-        Room room = roomRepository.findByIdAndOwnerId(req.getRoomId(), ownerId)
+        Room room = roomRepository.findByIdAndHouse_UserId(req.getRoomId(), userId)
                 .orElseThrow(() -> new EntityNotFoundException("Room not found or not owned by user"));
 
         EquipmentCategory category = equipmentCategoryRepository.findById(req.getEquipmentCategoryId())
                 .orElseThrow(() -> new EntityNotFoundException("Category not found"));
 
         Equipment equipment = equipmentMapper.toEntity(req);
-        equipment.setOwnerId(ownerId);
         equipment.setRoom(room);
+        equipment.setEquipmentCategory(category);
         Equipment savedEquipment = equipmentRepository.save(equipment);
         log.info("Equipment {} is created successfully", savedEquipment.getId());
         return equipmentMapper.toResponse(savedEquipment);
     }
 
     @Transactional
-    public EquipmentResponse updateEquipment(Long ownerId, Long equipmentId, UpdateEquipmentRequest req)
+    public EquipmentResponse updateEquipment(Long userId, Long equipmentId, UpdateEquipmentRequest req)
     {
-        Equipment e = equipmentRepository.findByIdAndOwnerId(equipmentId, ownerId)
+        Equipment e = equipmentRepository.findByIdAndRoom_House_UserId(equipmentId, userId)
                 .orElseThrow(() -> new EntityNotFoundException("Equipment not found with id:" + equipmentId));
         if (req.getRoomId() != null)
         {
-            Room room = roomRepository.findByIdAndOwnerId(req.getRoomId(), ownerId)
+            Room room = roomRepository.findByIdAndHouse_UserId(req.getRoomId(), userId)
                     .orElseThrow(() -> new EntityNotFoundException("Room not found or not owned by user"));
             e.setRoom(room);
         }

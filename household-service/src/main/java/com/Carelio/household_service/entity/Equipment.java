@@ -21,7 +21,7 @@ public class Equipment
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long ownerId;
+//    private Long userId;
 
     @Column(name = "name")
     private String name;

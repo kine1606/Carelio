@@ -3,7 +3,6 @@ package com.Carelio.household_service.controller;
 import com.Carelio.household_service.dto.request.CreateEquipmentRequest;
 import com.Carelio.household_service.dto.request.UpdateEquipmentRequest;
 import com.Carelio.household_service.dto.response.EquipmentResponse;
-import com.Carelio.household_service.mapper.EquipmentMapper;
 import com.Carelio.household_service.service.EquipmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +16,6 @@ import java.util.List;
 public class EquipmentController
 {
     private final EquipmentService equipmentService;
-    private final EquipmentMapper equipmentMapper;
-
     // GET /api/equipments
     @GetMapping
     public List<EquipmentResponse> getEquipments(

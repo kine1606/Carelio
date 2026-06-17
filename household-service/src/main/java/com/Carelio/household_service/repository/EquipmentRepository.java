@@ -11,9 +11,11 @@ import java.util.Optional;
 @Repository
 public interface EquipmentRepository extends JpaRepository<Equipment, Long>
 {
-    Optional<Equipment> findByIdAndOwnerId(Long id, Long ownerId);
+    List<Equipment> findByRoom_IdAndRoom_House_UserId(Long roomId, Long userId);
 
-    List<Equipment> findAllByDeletedFalseAndOwnerId(Long ownerId);
+    List<Equipment> findAllByDeletedFalseAndRoom_House_UserId(Long userId);
 
-    List<Equipment> findByRoomIdAndOwnerId(Long roomId, Long ownerId);
+    Optional<Equipment> findByIdAndRoom_House_UserId(Long id, Long userId);
+
+    List<Equipment> findByRoom_Id(Long id);
 }

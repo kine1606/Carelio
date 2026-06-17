@@ -2,6 +2,7 @@ package com.Carelio.household_service.repository;
 
 
 import com.Carelio.household_service.entity.Room;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,11 +12,9 @@ import java.util.Optional;
 @Repository
 public interface RoomRepository extends JpaRepository<Room, Long>
 {
-    Optional<Room> findByIdAndOwnerId(Long id, Long ownerId);
-    boolean existsByIdAndOwnerId(Long id, Long ownerId);
-//    List<Room> findByOwnerIdAndByDeletedFalse(Long ownerId);
+    boolean existsByIdAndHouse_UserId(Long roomId, Long userId);
 
-    List<Room> findByOwnerIdAndDeletedFalse(Long ownerId);
+    Optional<Room> findByIdAndHouse_UserId(@NotNull(message = "Room id is required") Long roomId, Long userId);
 
-    List<Room> findByOwnerId(Long ownerId);
+    List<Room> findByHouse_UserId(Long ownerId);
 }
