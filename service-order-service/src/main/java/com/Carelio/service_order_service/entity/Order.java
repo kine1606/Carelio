@@ -22,14 +22,19 @@ public class Order
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long userId;          // customerId
+//    @Column(nullable = false)
+    private Long userId;
     private Long workerId;        // worker (can be null at first time)
 
-    //snapshot of equipment
-    private Long roomId;
-    private Long equipmentId;
 
-    private Long serviceSkillId;       // REPAIR / CLEAN / MAINTAIN / INSTALLATION / PART_REPLACEMENT
+    //snapshot of equipment
+//    @Column(nullable = false)
+    private Long roomId;
+//    @Column(nullable = false)
+    private Long equipmentId;
+//    @Column(nullable = false)
+    private Long serviceSkillId;
+//    @Column(nullable = false)
     private Long equipmentCategoryId;
 
     private String title;
@@ -37,6 +42,10 @@ public class Order
 
     @Enumerated(EnumType.STRING)
     private ServiceOrderStatus status;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "address_id")
+    private Address address;
 
     private LocalDateTime scheduledAt;
 
@@ -47,9 +56,7 @@ public class Order
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "address_id")
-    private Address address;
+
 
     @PrePersist
     public void prePersist()

@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.annotation.CreatedDate;
 
 import java.time.LocalDateTime;
 
@@ -20,12 +21,19 @@ public class OrderAttachment
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    //    @Column(nullable = false)
     private Long orderId;
-
+    //    @Column(nullable = false)
     private String fileUrl;
+    //    @Column(nullable = false)
     private String fileType;
+    //    @Column(nullable = false)
     private UploadedByType uploadedBy;
+
+    @CreatedDate
     private LocalDateTime createdAt;
+
+    private boolean isDeleted = false;
 
     @PrePersist
     public void prePersist()

@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.annotation.CreatedDate;
 
 import java.time.LocalDateTime;
 
@@ -18,18 +19,26 @@ import java.time.LocalDateTime;
 public class OrderReview
 {
     // 1 order get reviewed once
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+//    @Column(nullable = false)
     private Long orderId;
-
+//    @Column(nullable = false)
     private Long userId;
+//    @Column(nullable = false)
     private Long workerId;
 
     private Integer rating;
     private String comment;
 
+    @CreatedDate
     private LocalDateTime createdAt;
+
+    @PrePersist
+    public void prePersist()
+    {
+        createdAt = LocalDateTime.now();
+    }
 }
