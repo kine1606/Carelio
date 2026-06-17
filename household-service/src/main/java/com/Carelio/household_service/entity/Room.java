@@ -35,6 +35,8 @@ public class Room
     @OneToMany(mappedBy = "room")
     private List<Equipment> equipments;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    private House house;
     @CreatedDate
 //    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
