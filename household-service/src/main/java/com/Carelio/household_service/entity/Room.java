@@ -22,8 +22,6 @@ public class Room
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long ownerId;
-
     @Column(nullable = false)
     private String name;
 

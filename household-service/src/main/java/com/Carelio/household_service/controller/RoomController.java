@@ -4,6 +4,7 @@ import com.Carelio.household_service.dto.request.CreateRoomRequest;
 import com.Carelio.household_service.dto.request.UpdateRoomRequest;
 import com.Carelio.household_service.dto.response.RoomResponse;
 import com.Carelio.household_service.service.RoomService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,7 +39,7 @@ public class RoomController
     @PostMapping
     public RoomResponse createRoom(
             @RequestHeader("X-USER-ID") Long ownerId,
-            @RequestBody CreateRoomRequest request)
+            @RequestBody @Valid CreateRoomRequest request)
     {
         return roomService.createRoom(ownerId, request);
     }
@@ -48,7 +49,7 @@ public class RoomController
     public RoomResponse updateRoom(
             @RequestHeader("X-USER-ID") Long ownerId,
             @PathVariable Long roomId,
-            @RequestBody UpdateRoomRequest request)
+            @RequestBody @Valid UpdateRoomRequest request)
     {
         return roomService.updateRoom(ownerId, roomId, request);
     }

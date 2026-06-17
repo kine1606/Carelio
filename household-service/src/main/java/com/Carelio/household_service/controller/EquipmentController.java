@@ -5,6 +5,7 @@ import com.Carelio.household_service.dto.request.UpdateEquipmentRequest;
 import com.Carelio.household_service.dto.response.EquipmentResponse;
 import com.Carelio.household_service.mapper.EquipmentMapper;
 import com.Carelio.household_service.service.EquipmentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,7 +41,7 @@ public class EquipmentController
     @PostMapping
     public EquipmentResponse createEquipment(
             @RequestHeader("X-USER-ID") Long ownerId,
-            @RequestBody CreateEquipmentRequest res)
+            @RequestBody @Valid CreateEquipmentRequest res)
     {
         return equipmentService.createEquipment(ownerId, res);
     }
@@ -49,7 +50,7 @@ public class EquipmentController
     public EquipmentResponse updateEquipment(
             @RequestHeader("X-USER-ID") Long ownerId,
             @PathVariable Long id,
-            @RequestBody UpdateEquipmentRequest res)
+            @RequestBody @Valid UpdateEquipmentRequest res)
     {
         return equipmentService.updateEquipment(ownerId, id, res);
     }
