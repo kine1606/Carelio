@@ -15,8 +15,9 @@ public interface RoomMapper
 
     Room toEntity(CreateRoomRequest request);
 
-    @Mapping(source = "ownerId", target = "ownerId")
+//    @Mapping(source = "userId", target = "userId")
     @Mapping(source = "description", target = "description")
+    @Mapping(source = "house.id", target = "houseId")
     RoomResponse toResponse(Room room);
     List<RoomResponse> toResponseList(List<Room> rooms);
 }

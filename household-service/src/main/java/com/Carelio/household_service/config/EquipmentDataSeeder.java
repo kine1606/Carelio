@@ -53,7 +53,6 @@ public class EquipmentDataSeeder implements CommandLineRunner {
 
         List<Equipment> equipmentList = List.of(
                 Equipment.builder()
-                        .ownerId(1L)
                         .name("Máy lạnh phòng khách")
                         .brand("Daikin")
                         .model("FTKC35UAVMV")
@@ -66,7 +65,6 @@ public class EquipmentDataSeeder implements CommandLineRunner {
                         .build(),
 
                 Equipment.builder()
-                        .ownerId(1L)
                         .name("Tivi phòng khách")
                         .brand("Samsung")
                         .model("UA55CU8000")
@@ -79,7 +77,6 @@ public class EquipmentDataSeeder implements CommandLineRunner {
                         .build(),
 
                 Equipment.builder()
-                        .ownerId(1L)
                         .name("Tủ lạnh bếp")
                         .brand("Panasonic")
                         .model("NR-BV360QSVN")
@@ -92,7 +89,6 @@ public class EquipmentDataSeeder implements CommandLineRunner {
                         .build(),
 
                 Equipment.builder()
-                        .ownerId(1L)
                         .name("Máy giặt")
                         .brand("LG")
                         .model("FV1411S3B")
@@ -105,7 +101,6 @@ public class EquipmentDataSeeder implements CommandLineRunner {
                         .build(),
 
                 Equipment.builder()
-                        .ownerId(1L)
                         .name("Máy lạnh phòng ngủ")
                         .brand("Panasonic")
                         .model("CU/CS-XU9ZKH-8")
@@ -118,7 +113,6 @@ public class EquipmentDataSeeder implements CommandLineRunner {
                         .build(),
 
                 Equipment.builder()
-                        .ownerId(2L)
                         .name("Tivi user khác")
                         .brand("Sony")
                         .model("KD-55X80L")

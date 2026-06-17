@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 public class HouseResponse
 {
     private Long id;
-    private Long ownerId;
+    private Long userId;
     private String addressLine;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
