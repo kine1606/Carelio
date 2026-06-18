@@ -19,9 +19,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ServiceOrderController
 {
-
     private final OrderService orderService;
-
     @GetMapping
     public ResponseEntity<List<OrderResponse>> getAllOrders(@RequestHeader("X-USER-ID") Long userId)
     {
@@ -37,24 +35,28 @@ public class ServiceOrderController
     }
 
     @PostMapping
-    public ResponseEntity<OrderResponse> createOrder(@RequestBody OrderRequest orderRequest)
+    public ResponseEntity<OrderResponse> createOrder(
+            @RequestHeader("X-USER-ID") Long userId,
+            @RequestBody OrderRequest orderRequest)
     {
-        return orderService.createOrder(orderRequest);
+        return ResponseEntity.ok(orderService.createOrder(userId, orderRequest));
     }
 
-    @PatchMapping("/{id}")
+    @PatchMapping("/{orderId}")
     public ResponseEntity<OrderResponse> updateOrder(
-            @PathVariable Long id,
-            @RequestBody UpdateOrderRequest update
-    )
+            @RequestHeader("X-USER-ID") Long userId,
+            @PathVariable Long orderId,
+            @RequestBody UpdateOrderRequest update)
     {
-        return orderService.updateOrder(id, update);
+        return ResponseEntity.ok(orderService.updateOrder(userId, orderId, update));
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<OrderResponse> deleteOrder(@PathVariable Long id)
+    @DeleteMapping("/{orderId}")
+    public ResponseEntity<OrderResponse> deleteOrder(
+            @RequestHeader("X-USER-ID") Long userId,
+            @PathVariable Long orderId)
     {
-        return orderService.deleteOrder(id);
+        return ResponseEntity.ok(orderService.deleteOrder(userId, orderId));
     }
 
     // ==================== Attachments ====================

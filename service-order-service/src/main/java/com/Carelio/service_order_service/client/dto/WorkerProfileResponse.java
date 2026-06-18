@@ -1,6 +1,6 @@
 package com.Carelio.service_order_service.client.dto;
 
-import com.Carelio.worker_service.entity.WorkerStatus;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,5 +18,4 @@ public class WorkerProfileResponse
     private Integer totalJobs;
     private Double ratingAvg;
     private String bio;
-    private WorkerStatus status;
 }
