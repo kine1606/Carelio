@@ -8,6 +8,7 @@ public enum ServiceOrderStatus
     SCHEDULED,
     IN_PROGRESS,
     COMPLETED,
+
     CANCELLED,
     EXPIRED
 }
