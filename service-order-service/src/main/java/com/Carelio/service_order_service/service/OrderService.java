@@ -1,56 +1,68 @@
-package com.amigoscode.carelio.serviceOrder.service;
+package com.Carelio.service_order_service.service;
 
-import com.amigoscode.carelio.equipment.entity.Equipment;
-import com.amigoscode.carelio.equipment.service.EquipmentService;
-import com.amigoscode.carelio.serviceOrder.dto.CreateServiceOrderRequest;
-import com.amigoscode.carelio.serviceOrder.entity.ServiceOrderStatus;
-import com.amigoscode.carelio.serviceOrder.mapper.ServiceOrderMapper;
-import com.amigoscode.carelio.user.entity.user.UserAddressInformation;
+import com.Carelio.service_order_service.client.HouseholdClient;
+import com.Carelio.service_order_service.client.WorkerClient;
+import com.Carelio.service_order_service.client.dto.EquipmentValidationResponse;
+import com.Carelio.service_order_service.client.dto.ServiceSkillResponse;
+import com.Carelio.service_order_service.dto.request.OrderRequest;
+import com.Carelio.service_order_service.dto.response.OrderResponse;
+import com.Carelio.service_order_service.entity.Order;
+import com.Carelio.service_order_service.mapper.OrderMapper;
+import com.Carelio.service_order_service.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import com.amigoscode.carelio.serviceOrder.entity.ServiceOrder;
-import com.amigoscode.carelio.serviceOrder.repository.ServiceOrderRepository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class OrderService
 {
+    private final OrderMapper orderMapper;
+    private final OrderRepository orderRepository;
+    private final HouseholdClient householdClient;
+    private final WorkerClient workerClient;
 
-    private final ServiceOrderRepository serviceOrderRepository;
-    private final ServiceOrderMapper serviceOrderMapper;
-//    private final UserAddressInformationService uaiService;
-//    private final WorkerService workerService;
-    private final EquipmentService  equipmentService;
-    public List<ServiceOrder> getAll()
+    //POST /api/orders
+    public OrderResponse createOrder(Long userId, OrderRequest request)
     {
-        return serviceOrderRepository.findAllByDeletedFalse();
+        EquipmentValidationResponse evResponse = householdClient.validate(
+                userId,
+                request.getEquipmentId(),
+                request.getRoomId(),
+                request.getHouseId()
+        );
+
+        ServiceSkillResponse ssResponse =  workerClient.getServiceSkill(
+                request.getServiceSkillId()
+        );
+        Order order = orderMapper.toEntity(request, userId,evResponse, ssResponse);
+        Order saved =  orderRepository.save(order);
+        log.info("Order created successfully: {}", order);
+
+        return orderMapper.toResponse(saved);
     }
 
-    public ServiceOrder getById(Long id)
+    //GET /api/orders/{id}
+    public OrderResponse getById(Long userId, Long orderId)
     {
-        return serviceOrderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Service order not found"));
+        Order order = orderRepository.findByIdAndUserId(orderId,userId);
+        log.info("Order found with id: {} and userId: {}", orderId, userId);
+        return orderMapper.toResponse(order);
     }
 
-    public ServiceOrder create(CreateServiceOrderRequest req)
+    //GET /api/orders
+    public List<OrderResponse> getAll(Long userId)
     {
-        Equipment equipment = equipmentService.getById(req.getEquipmentId());
-//        UserAddressInformation address = uaiService.getById(req.getUserAddressInformationId());
-        ServiceOrder serviceOrder = serviceOrderMapper.toEntity(req);
-        serviceOrder.setEquipment(equipment);
-//        serviceOrder.setUserAddressInformation(address);
-        serviceOrder.setStatus(ServiceOrderStatus.POSTED);
-        serviceOrder.setCreatedAt(LocalDateTime.now());
-        return  serviceOrderRepository.save(serviceOrder);
+        List<Order> orders = orderRepository.findAllByUserId(userId);
+        log.info("Found {} orders", orders.size());
+
+        return orderMapper.toResponseList(orders);
     }
 
-    public void delete(Long id)
-    {
-        serviceOrderRepository.deleteById(id);
-    }
+
 }
