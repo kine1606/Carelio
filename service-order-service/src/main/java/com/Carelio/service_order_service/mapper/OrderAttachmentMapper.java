@@ -1,6 +1,5 @@
 package com.Carelio.service_order_service.mapper;
 
-import com.Carelio.service_order_service.dto.request.OrderAttachmentRequest;
 import com.Carelio.service_order_service.dto.response.OrderAttachmentResponse;
 import com.Carelio.service_order_service.entity.OrderAttachment;
 import org.mapstruct.Mapper;

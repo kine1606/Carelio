@@ -23,7 +23,20 @@ services:
     volumes:
       - worker_postgres_data:/var/lib/postgresql/data
 
+  order-postgres:
+    image: postgres:16
+    container_name: order-postgres
+    environment:
+      POSTGRES_DB: order_db
+      POSTGRES_USER: order_service
+      POSTGRES_PASSWORD: order_password
+    ports:
+      - "5436:5432"
+    volumes:
+      - order_postgres_data:/var/lib/postgresql/data
+
 volumes:
   household_postgres_data:
   worker_postgres_data:
+  order_postgres_data:
 

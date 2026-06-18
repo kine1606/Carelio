@@ -108,6 +108,16 @@ public class WorkerService
         log.info("Found {} skills", skills.size());
         return workerSkillMapper.toResponseList(skills);
     }
-
+    public WorkerProfileResponse updateRating(Long workerId, Integer rating)
+    {
+        if(rating == null) rating = 5;
+        WorkerProfile profile = workerProfileRepository.findById(workerId)
+                .orElseThrow(() -> new EntityNotFoundException("Worker profile with id " + workerId + " not found"));
+        profile.setTotalJobs(profile.getTotalJobs() + 1);
+        profile.setRatingAvg( (profile.getRatingAvg()+ rating ) / 2);
+        WorkerProfile savedProfile = workerProfileRepository.save(profile);
+        log.info("Worker profile {} updated successfully ", savedProfile.getId());
+        return workerProfileMapper.toResponse(savedProfile);
+    }
 }
 

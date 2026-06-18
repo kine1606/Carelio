@@ -2,6 +2,7 @@ package com.Carelio.service_order_service.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.validator.constraints.Range;
 import org.springframework.data.annotation.CreatedDate;
 
 import java.time.LocalDateTime;
@@ -29,6 +30,7 @@ public class OrderReview
 //    @Column(nullable = false)
     private Long workerId;
 
+    @Range(min = 1, max = 5, message = "Rating has to be in range from 1 to 5")
     private Integer rating;
     private String comment;
 
