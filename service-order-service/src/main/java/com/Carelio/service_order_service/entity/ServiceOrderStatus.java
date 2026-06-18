@@ -5,7 +5,6 @@ public enum ServiceOrderStatus
 {
     POSTED,
     CLAIMED,
-    SCHEDULED,
     IN_PROGRESS,
     COMPLETED,
 

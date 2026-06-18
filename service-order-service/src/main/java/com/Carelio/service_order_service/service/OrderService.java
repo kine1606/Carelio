@@ -2,8 +2,7 @@ package com.Carelio.service_order_service.service;
 
 import com.Carelio.service_order_service.client.HouseholdClient;
 import com.Carelio.service_order_service.client.WorkerClient;
-import com.Carelio.service_order_service.client.dto.EquipmentValidationResponse;
-import com.Carelio.service_order_service.client.dto.ServiceSkillResponse;
+import com.Carelio.service_order_service.client.dto.*;
 import com.Carelio.service_order_service.dto.request.*;
 import com.Carelio.service_order_service.dto.response.OrderAttachmentResponse;
 import com.Carelio.service_order_service.dto.response.OrderResponse;
@@ -21,9 +20,11 @@ import com.Carelio.service_order_service.repository.OrderReviewRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -58,6 +59,7 @@ public class OrderService
 
         return orderMapper.toResponseList(orders);
     }
+
     //POST /api/orders
     public OrderResponse createOrder(Long userId, OrderRequest request)
     {
@@ -68,11 +70,11 @@ public class OrderService
                 request.getHouseId()
         );
 
-        ServiceSkillResponse ssResponse =  workerClient.getServiceSkill(
+        ServiceSkillResponse ssResponse = workerClient.getServiceSkill(
                 request.getServiceSkillId()
         );
-        Order order = orderMapper.toEntity(request, userId,evResponse, ssResponse);
-        Order saved =  orderRepository.save(order);
+        Order order = orderMapper.toEntity(request, userId, evResponse, ssResponse);
+        Order saved = orderRepository.save(order);
         log.info("Order created successfully: {}", order);
 
         return orderMapper.toResponse(saved);
@@ -83,7 +85,7 @@ public class OrderService
     {
         Order order = getOrderEntity(userId, orderId);
         order.setStatus(ServiceOrderStatus.CANCELLED);
-        Order saved =  orderRepository.save(order);
+        Order saved = orderRepository.save(order);
         log.info("Order deleted successfully: {}", order);
 
         return orderMapper.toResponse(saved);
@@ -97,7 +99,7 @@ public class OrderService
         order.setDescription(request.getDescription());
         order.setScheduledAt(request.getScheduledTime());
 
-        Order saved =  orderRepository.save(order);
+        Order saved = orderRepository.save(order);
         log.info("Order updated successfully: {}", order);
         return orderMapper.toResponse(saved);
     }
@@ -108,22 +110,64 @@ public class OrderService
                 .orElseThrow(() -> new EntityNotFoundException("Order not found with id: " + orderId));
         return order;
     }
-    //===========================================CRUD==================================================
-    //PATCH /api/orders/{id}/assign?workerId={workerid}
-//    public OrderResponse assignWorker(Long userId, Long orderId, Long workerId)
-//    {
-//    }
+
+    //==================WORKFLOW====================
+//    PATCH /api/orders/{id}/assign
+    public OrderResponse assignWorker(Long userId, Long orderId, AssignWorkerRequest workerRequest) throws Exception
+    {
+        // status = PENDING
+        // worker status = available
+        // skill is suitable for this job.
+        Order order = getOrderEntity(userId, orderId);
+        if (order.getStatus() != ServiceOrderStatus.POSTED) {
+            throw new BadRequestException("only assigned when status = POSTED");
+        }
+        List<WorkerSkillResponse> workerSkills = workerClient.getWorkerSkills(workerRequest.getWorkerId());
+        if (workerSkills == null || workerSkills.isEmpty()) {
+            throw new BadRequestException("Worker has no skills or does not exist");
+        }
+        var workerProfile = workerSkills.get(0).getWorkerProfileResponse();
+        if (workerProfile.getStatus() != WorkerStatus.AVAILABLE) {
+            throw new BadRequestException("Current worker is not ready for this order");
+        }
+        boolean isSuitable = false;
+        for (WorkerSkillResponse workerSkill : workerSkills) {
+            if (workerSkill.getServiceSkillResponse().getId().equals(order.getServiceSkillId())
+                    && workerSkill.getEquipmentCategoryId().equals(order.getEquipmentCategoryId())) {
+                isSuitable = true;
+                break;
+            }
+        }
+        if (!isSuitable) {
+            throw new BadRequestException("Worker is not suitable for this order");
+        }
+        Order saved = saveOrderAssignment(order, workerProfile.getId());
+        log.info("Order assigned successfully: {}", order);
+        return orderMapper.toResponse(saved);
+    }
+
+    @Transactional
+    public Order saveOrderAssignment(Order order, Long workerId)
+    {
+        order.setWorkerId(workerId);
+        order.setScheduledAt(LocalDateTime.now());
+        order.setStatus(ServiceOrderStatus.CLAIMED);
+        return orderRepository.save(order);
+    }
+
+    //PATCH /api/orders/{id}/accept
+
     //PATCH /api/orders/{id}/status
     public OrderResponse updateStatus(Long userId, Long orderId, UpdateOrderStatusRequest request)
     {
         Order order = getOrderEntity(userId, orderId);
         order.setStatus(request.getStatus());
-        Order saved =  orderRepository.save(order);
+        Order saved = orderRepository.save(order);
         log.info("Order updated status successfully: {}", order);
-        return  orderMapper.toResponse(saved);
+        return orderMapper.toResponse(saved);
     }
 
-//===========================================Order Attachment==================================================
+    //===========================================Order Attachment==================================================
     //POST /api/orders/{id}/attachments
     public OrderAttachmentResponse createAttachment(Long userId, Long orderId, OrderAttachmentRequest request)
     {
@@ -137,7 +181,7 @@ public class OrderService
         log.info("Attachment created successfully: {}", attachment.getId());
         return orderAttachmentMapper.toResponse(saved);
     }
-    
+
     //GET /api/orders/{id}/attachments
     public List<OrderAttachmentResponse> getAttachments(Long userId, Long orderId)
     {

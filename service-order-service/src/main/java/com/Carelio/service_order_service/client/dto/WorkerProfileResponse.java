@@ -18,4 +18,6 @@ public class WorkerProfileResponse
     private Integer totalJobs;
     private Double ratingAvg;
     private String bio;
+    private WorkerStatus status;
 }
+
