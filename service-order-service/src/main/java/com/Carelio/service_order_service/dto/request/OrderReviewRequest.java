@@ -11,9 +11,8 @@ import lombok.Setter;
 @AllArgsConstructor
 public class OrderReviewRequest
 {
-    private Long orderId;
-    private Long userId;
-    private Long workerId;
+//    @NotNull(message = "Rating is required")
+//    @Range(min = 1, max = 5, message = "Rating has to be in range from 1 to 5")
     private Integer rating;
     private String comment;
 }

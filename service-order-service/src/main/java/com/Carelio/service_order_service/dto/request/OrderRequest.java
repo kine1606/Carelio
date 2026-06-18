@@ -12,8 +12,6 @@ import lombok.Setter;
 public class OrderRequest
 {
 //    @NotNull
-    private Long userId;
-//    @NotNull
     private Long houseId;
 //    @NotNull
     private Long roomId;
