@@ -14,14 +14,14 @@ public class OrderRequest
 //    @NotNull
     private Long userId;
 //    @NotNull
-    private AddressRequest address;
+    private Long houseId;
 //    @NotNull
     private Long roomId;
-    //    @NotNull
+//    @NotNull
     private Long equipmentId;
-    //    @NotNull
+//    @NotNull
     private Long serviceSkillId;
-    //    @NotNull
+//    @NotNull
     private Long equipmentCategoryId;
 
     private String title;

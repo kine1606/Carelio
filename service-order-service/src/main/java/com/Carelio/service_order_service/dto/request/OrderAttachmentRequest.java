@@ -12,7 +12,6 @@ import lombok.Setter;
 @AllArgsConstructor
 public class OrderAttachmentRequest
 {
-
     private Long orderId;
     private String fileUrl;
     private String fileType;
