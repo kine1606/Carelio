@@ -4,12 +4,15 @@ package com.Carelio.household_service.service;
 import com.Carelio.household_service.dto.request.CreateEquipmentRequest;
 import com.Carelio.household_service.dto.request.UpdateEquipmentRequest;
 import com.Carelio.household_service.dto.response.EquipmentResponse;
+import com.Carelio.household_service.dto.response.EquipmentValidationResponse;
 import com.Carelio.household_service.entity.Equipment;
 import com.Carelio.household_service.entity.EquipmentCategory;
+import com.Carelio.household_service.entity.House;
 import com.Carelio.household_service.entity.Room;
 import com.Carelio.household_service.mapper.EquipmentMapper;
 import com.Carelio.household_service.repository.EquipmentCategoryRepository;
 import com.Carelio.household_service.repository.EquipmentRepository;
+import com.Carelio.household_service.repository.HouseRepository;
 import com.Carelio.household_service.repository.RoomRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -28,12 +31,13 @@ public class EquipmentService
     private final EquipmentRepository equipmentRepository;
     private final RoomRepository roomRepository;
     private final EquipmentMapper equipmentMapper;
-    private final EquipmentCategoryRepository  equipmentCategoryRepository;
+    private final EquipmentCategoryRepository equipmentCategoryRepository;
+    private final HouseRepository houseRepository;
 
     public List<EquipmentResponse> getAll(Long userId)
     {
         List<Equipment> equipments = equipmentRepository.findAllByDeletedFalseAndRoom_House_UserId(userId);
-        log.info("found {} equipment with userId: {}",equipments.size(), userId);
+        log.info("found {} equipment with userId: {}", equipments.size(), userId);
         return equipmentMapper.toResponseList(equipments);
     }
 
@@ -53,8 +57,8 @@ public class EquipmentService
 
         List<Equipment> equipmentList =
                 equipmentRepository.findByRoom_Id(room.getId());
-        log.info("found {} equipment with roomId: {}",equipmentList.size(), roomId);
-        return  equipmentMapper.toResponseList(equipmentList);
+        log.info("found {} equipment with roomId: {}", equipmentList.size(), roomId);
+        return equipmentMapper.toResponseList(equipmentList);
     }
 
     @Transactional
@@ -79,8 +83,7 @@ public class EquipmentService
     {
         Equipment e = equipmentRepository.findByIdAndRoom_House_UserId(equipmentId, userId)
                 .orElseThrow(() -> new EntityNotFoundException("Equipment not found with id:" + equipmentId));
-        if (req.getRoomId() != null)
-        {
+        if (req.getRoomId() != null) {
             Room room = roomRepository.findByIdAndHouse_UserId(req.getRoomId(), userId)
                     .orElseThrow(() -> new EntityNotFoundException("Room not found or not owned by user"));
             e.setRoom(room);
@@ -97,10 +100,25 @@ public class EquipmentService
         return equipmentMapper.toResponse(savedEquipment);
     }
 
-//    @Transactional
-//    public void delete(Long id) {
-//        Equipment equipment = getById(id);
-//        equipment.setDeleted(true);
-//        equipment.setUpdatedAt(LocalDateTime.now());
-//    }
+    public EquipmentValidationResponse validateEquipment(Long userId,
+                                                         Long equipmentId,
+                                                         Long roomId,
+                                                         Long houseId)
+    {
+        House house = houseRepository.findByIdAndUserId(houseId, userId)
+                .orElseThrow(() -> new EntityNotFoundException("House " + houseId + " not found or not owned by user"));
+        Room room = roomRepository.findByIdAndHouse_Id(roomId, userId)
+                .orElseThrow(() -> new EntityNotFoundException("Room " + roomId + " not found or not belonged to house " + houseId));
+        Equipment equipment = equipmentRepository.findByIdAndRoom_Id(equipmentId, userId)
+                .orElseThrow(() -> new EntityNotFoundException("Equipment " + equipmentId + " not found or not belonged to room " + roomId));
+
+        return EquipmentValidationResponse
+                .builder()
+                .houseAddressLine(house.getAddressLine())
+                .roomName(room.getName())
+                .equipmentSerialNumber(equipment.getSerialNumber())
+                .equipmentBrand(equipment.getBrand())
+                .equipmentCategoryName(equipment.getEquipmentCategory().getName())
+                .build();
+    }
 }

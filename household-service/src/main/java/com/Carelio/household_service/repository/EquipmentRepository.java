@@ -18,4 +18,6 @@ public interface EquipmentRepository extends JpaRepository<Equipment, Long>
     Optional<Equipment> findByIdAndRoom_House_UserId(Long id, Long userId);
 
     List<Equipment> findByRoom_Id(Long id);
+
+    Optional<Equipment> findByIdAndRoom_Id(Long equipmentId, Long userId);
 }

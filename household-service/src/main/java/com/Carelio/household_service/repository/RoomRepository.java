@@ -17,4 +17,6 @@ public interface RoomRepository extends JpaRepository<Room, Long>
     Optional<Room> findByIdAndHouse_UserId(@NotNull(message = "Room id is required") Long roomId, Long userId);
 
     List<Room> findByHouse_UserId(Long ownerId);
+
+    Optional<Room> findByIdAndHouse_Id(Long roomId, Long userId);
 }
