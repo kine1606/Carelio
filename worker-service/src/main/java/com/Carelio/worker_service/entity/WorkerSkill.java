@@ -40,7 +40,7 @@ public class WorkerSkill
     //cross-service
     // different service so can't use relationship @ManyToOne so we just take id of it.
     private Long equipmentCategoryId;
-
+    private String equipmentCategoryName;
     @Positive
     private Integer yearExperience;
 

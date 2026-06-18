@@ -1,6 +1,7 @@
 package com.Carelio.worker_service.service;
 
 import com.Carelio.worker_service.client.HouseholdClient;
+import com.Carelio.worker_service.client.dto.CategoryResponse;
 import com.Carelio.worker_service.dto.request.WorkerProfileRequest;
 import com.Carelio.worker_service.dto.request.WorkerSkillRequest;
 import com.Carelio.worker_service.dto.response.WorkerProfileResponse;
@@ -72,7 +73,10 @@ public class WorkerService
                 .orElseThrow(() -> new EntityNotFoundException("Worker profile with id " + workerId + " not found"));
         ServiceSkill skill = serviceSkillRepository.findById(request.getServiceSkillId())
                 .orElseThrow(() -> new EntityNotFoundException("Skill with id " + request.getServiceSkillId() + " not found"));
-        householdClient.getCategoryById(request.getEquipmentCategoryId());
+        CategoryResponse categoryResponse =  householdClient.getCategoryById(request.getEquipmentCategoryId());
+
+        log.info("id: " + categoryResponse.getId());
+        log.info("name: " + categoryResponse.getName());
 
         boolean exists = workerSkillRepository.existsByWorkerProfile_IdAndServiceSkill_IdAndEquipmentCategoryId
                 (
@@ -85,8 +89,10 @@ public class WorkerService
             throw new RuntimeException("Worker skill already exists");
         }
         WorkerSkill workerSkill = WorkerSkill.builder()
-                .workerProfile(profile).serviceSkill(skill)
-                .equipmentCategoryId(request.getEquipmentCategoryId())
+                .workerProfile(profile)
+                .serviceSkill(skill)
+                .equipmentCategoryId(categoryResponse.getId())
+                .equipmentCategoryName(categoryResponse.getName())
                 .yearExperience(request.getYearExperience()).skillLevel(request.getSkillLevel())
                 .build();
         WorkerSkill savedSkill = workerSkillRepository.save(workerSkill);
@@ -96,7 +102,8 @@ public class WorkerService
 
     public List<WorkerSkillResponse> getWorkerSkill(Long workerId)
     {
-        WorkerProfile profile = workerProfileRepository.findById(workerId).orElseThrow(() -> new EntityNotFoundException("Worker profile with id " + workerId + " not found"));
+        WorkerProfile profile = workerProfileRepository.findById(workerId)
+                .orElseThrow(() -> new EntityNotFoundException("Worker profile with id " + workerId + " not found"));
         List<WorkerSkill> skills = workerSkillRepository.findByWorkerProfile_Id(profile.getId());
         log.info("Found {} skills", skills.size());
         return workerSkillMapper.toResponseList(skills);

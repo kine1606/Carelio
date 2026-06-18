@@ -51,6 +51,7 @@ public class WorkerSkillSeeder implements CommandLineRunner {
                     .workerProfile(profiles.get(0))
                     .serviceSkill(repair)
                     .equipmentCategoryId(1L)
+                    .equipmentCategoryName(getCategoryName(1L))
                     .yearExperience(3)
                     .skillLevel(SkillLevel.ADVANCED)
                     .build());
@@ -60,6 +61,7 @@ public class WorkerSkillSeeder implements CommandLineRunner {
                     .workerProfile(profiles.get(1))
                     .serviceSkill(cleaning)
                     .equipmentCategoryId(2L)
+                    .equipmentCategoryName(getCategoryName(2L))
                     .yearExperience(2)
                     .skillLevel(SkillLevel.INTERMEDIATE)
                     .build());
@@ -69,6 +71,7 @@ public class WorkerSkillSeeder implements CommandLineRunner {
                     .workerProfile(profiles.get(2))
                     .serviceSkill(installation)
                     .equipmentCategoryId(3L)
+                    .equipmentCategoryName(getCategoryName(3L))
                     .yearExperience(4)
                     .skillLevel(SkillLevel.BEGINNER)
                     .build());
@@ -77,5 +80,14 @@ public class WorkerSkillSeeder implements CommandLineRunner {
         if (!seeds.isEmpty()) {
             workerSkillRepository.saveAll(seeds);
         }
+    }
+
+    private String getCategoryName(Long id) {
+        return switch (id != null ? id.intValue() : -1) {
+            case 1 -> "Air Conditioner";
+            case 2 -> "Washing Machine";
+            case 3 -> "Refrigerator";
+            default -> "Unknown";
+        };
     }
 }

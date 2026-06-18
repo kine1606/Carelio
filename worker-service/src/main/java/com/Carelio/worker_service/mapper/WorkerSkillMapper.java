@@ -20,6 +20,7 @@ public interface WorkerSkillMapper
 
     @Mapping(target = "workerProfileResponse", source = "workerProfile", qualifiedByName = "toWorkerProfileSummary")
     @Mapping(target = "serviceSkillResponse", source = "serviceSkill", qualifiedByName = "toServiceSkillRes")
+    @Mapping(target = "equipmentCategoryName", source = "equipmentCategoryName")
     WorkerSkillResponse toResponse(WorkerSkill workerSkill);
 
     List<WorkerSkillResponse> toResponseList(List<WorkerSkill> skills);

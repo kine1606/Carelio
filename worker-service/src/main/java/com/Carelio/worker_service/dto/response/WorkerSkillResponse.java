@@ -16,8 +16,8 @@ public class WorkerSkillResponse
     private WorkerProfileSummaryResponse workerProfileResponse;
     private ServiceSkillResponse serviceSkillResponse;
 
-    // private EquipmentCategoryResponse
+//    private EquipmentCategoryResponse
     private Long equipmentCategoryId;
-
+    private String equipmentCategoryName;
     private Integer yearExperience;
 }
