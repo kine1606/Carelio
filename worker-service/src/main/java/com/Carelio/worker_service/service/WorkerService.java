@@ -152,7 +152,7 @@ public class WorkerService
         }
         try
         {
-            orderClient.acceptOrder(orderId);
+            orderClient.acceptOrder(orderId, workerId);
         } catch (feign.FeignException e) {
             log.error("Lỗi gửi từ Order Service: " + e.contentUTF8());
             throw new RuntimeException("Order service trả về lỗi: " + e.contentUTF8());
@@ -173,12 +173,12 @@ public class WorkerService
                 .orElseThrow(() -> new EntityNotFoundException("Worker profile not found with id" + workerId));
 
         if (profile.getStatus() != WorkerStatus.ON_THE_WAY) {
-            throw new RuntimeException("Worker (" +profile.getStatus()+ ") is not available");
+            throw new RuntimeException("Worker status: (" +profile.getStatus()+ ") is not ready for this order");
         }
 
         try
         {
-            orderClient.startOrder(orderId);
+            orderClient.startOrder(orderId,workerId);
         } catch (feign.FeignException e)
         { // Bắt chính xác FeignException
             log.error("Lỗi gửi từ Order Service: " + e.contentUTF8());
@@ -203,7 +203,7 @@ public class WorkerService
 
         try
         {
-            orderClient.completeOrder(orderId);
+            orderClient.completeOrder(orderId, workerId);
         } catch (Exception e)
         {
             log.error("Can not call OrderService to claim order", e);

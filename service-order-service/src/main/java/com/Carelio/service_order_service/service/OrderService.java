@@ -167,7 +167,7 @@ public class OrderService
 
     //PATCH /api/service-orders/{id}/accept
     @Transactional
-    public OrderResponse processAcceptOrder(Long orderId)
+    public OrderResponse processAcceptOrder(Long orderId, Long workerId)
     {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Order not found with id: " + orderId));
@@ -177,18 +177,21 @@ public class OrderService
         }
 
         order.setStatus(ServiceOrderStatus.CLAIMED);
+        order.setWorkerId(workerId);
         orderRepository.save(order);
-        log.info("Order change status to CLAIMED successfully", orderId);
+        log.info("Order was claimed by", workerId);
         return orderMapper.toResponse(order);
     }
 
     //PATCH /api/service-orders/{id}/start
     @Transactional
-    public OrderResponse processStartOrder(Long orderId)
+    public OrderResponse processStartOrder(Long orderId, Long workerId)
     {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Order not found with id: " + orderId));
-
+        if(!order.getWorkerId().equals(workerId)) {
+            throw new RuntimeException("This worker" + workerId + "is not assigned for order with id: " + orderId);
+        }
         if (!order.getStatus().equals(ServiceOrderStatus.CLAIMED))
         {
             throw new RuntimeException("Current status (" +order.getStatus() +") is unavailable to work with (Must be CLAIMED)");
@@ -202,10 +205,14 @@ public class OrderService
 
     //PATCH /api/service-orders/{id}/complete
     @Transactional
-    public OrderResponse processCompleteOrder(Long orderId)
+    public OrderResponse processCompleteOrder(Long orderId, Long workerId)
     {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Order not found with id: " + orderId));
+
+        if(!order.getWorkerId().equals(workerId)) {
+            throw new RuntimeException("This worker" + workerId + "is not assigned for order with id: " + orderId);
+        }
 
         if (order.getStatus() != ServiceOrderStatus.IN_PROGRESS) {
             throw new RuntimeException("Current status (" +order.getStatus() +") is unavailable to work with (Must be IN_PROGRESS)");

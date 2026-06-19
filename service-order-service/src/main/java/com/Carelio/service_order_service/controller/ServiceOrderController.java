@@ -32,6 +32,7 @@ public class ServiceOrderController
     {
         return ResponseEntity.ok(orderService.getById(userId, orderId));
     }
+
     @PostMapping
     public ResponseEntity<OrderResponse> createOrder(
             @RequestHeader("X-USER-ID") Long userId,
@@ -60,19 +61,23 @@ public class ServiceOrderController
     //===================================INTERNAL USE ========================================
 
     @PatchMapping("/{orderId}/accept")
-    public ResponseEntity<OrderResponse> acceptOrder(@PathVariable Long orderId)
+    public ResponseEntity<OrderResponse> acceptOrder(@PathVariable Long orderId, @RequestParam Long workerId)
     {
-        return ResponseEntity.ok(orderService.processAcceptOrder(orderId));
+        return ResponseEntity.ok(orderService.processAcceptOrder(orderId, workerId));
     }
 
     @PatchMapping("/{orderId}/start")
-    public ResponseEntity<OrderResponse> startOrder(@PathVariable Long orderId)
+    public ResponseEntity<OrderResponse> startOrder(
+            @PathVariable Long orderId,
+            @RequestParam Long workerId)
     {
-        return ResponseEntity.ok(orderService.processStartOrder(orderId));
+        return ResponseEntity.ok(orderService.processStartOrder(workerId, orderId));
     }
+
     @PatchMapping("/{orderId}/complete")
-    public ResponseEntity<OrderResponse> completeOrder(@PathVariable Long orderId)
+    public ResponseEntity<OrderResponse> completeOrder(
+            @PathVariable Long orderId, @RequestParam Long workerId)
     {
-        return ResponseEntity.ok(orderService.processCompleteOrder(orderId));
+        return ResponseEntity.ok(orderService.processCompleteOrder(workerId, orderId));
     }
 }
