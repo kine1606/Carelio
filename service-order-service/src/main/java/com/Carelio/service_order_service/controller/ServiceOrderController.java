@@ -32,7 +32,6 @@ public class ServiceOrderController
     {
         return ResponseEntity.ok(orderService.getById(userId, orderId));
     }
-
     @PostMapping
     public ResponseEntity<OrderResponse> createOrder(
             @RequestHeader("X-USER-ID") Long userId,
@@ -58,23 +57,22 @@ public class ServiceOrderController
         return ResponseEntity.ok(orderService.deleteOrder(userId, orderId));
     }
 
+    //===================================INTERNAL USE ========================================
+
     @PatchMapping("/{orderId}/accept")
-    public void acceptOrder(@PathVariable Long orderId)
+    public ResponseEntity<OrderResponse> acceptOrder(@PathVariable Long orderId)
     {
-        orderService.processAcceptOrder(orderId);
-        log.info("cc");
+        return ResponseEntity.ok(orderService.processAcceptOrder(orderId));
     }
 
-//    @PatchMapping("/{orderId}/complete")
-
-//    @PatchMapping("/{orderId}/accept")
-//    public ResponseEntity<OrderResponse> acceptOrder(@PathVariable Long orderId)
-//    {
-//        return ResponseEntity.ok(orderService.processAcceptOrder(orderId));
-//    }
-//    @PatchMapping("/{orderId}/complete")
-//    public ResponseEntity<OrderResponse> completeOrder(@PathVariable Long orderId)
-//    {
-//        return ResponseEntity.ok(orderService.processCompleteOrder(orderId));
-//    }
+    @PatchMapping("/{orderId}/start")
+    public ResponseEntity<OrderResponse> startOrder(@PathVariable Long orderId)
+    {
+        return ResponseEntity.ok(orderService.processStartOrder(orderId));
+    }
+    @PatchMapping("/{orderId}/complete")
+    public ResponseEntity<OrderResponse> completeOrder(@PathVariable Long orderId)
+    {
+        return ResponseEntity.ok(orderService.processCompleteOrder(orderId));
+    }
 }

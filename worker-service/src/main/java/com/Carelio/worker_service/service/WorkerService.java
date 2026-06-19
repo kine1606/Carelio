@@ -3,6 +3,7 @@ package com.Carelio.worker_service.service;
 import com.Carelio.worker_service.client.HouseholdClient;
 import com.Carelio.worker_service.client.OrderClient;
 import com.Carelio.worker_service.client.dto.CategoryResponse;
+import com.Carelio.worker_service.client.dto.OrderResponse;
 import com.Carelio.worker_service.dto.request.WorkerProfileRequest;
 import com.Carelio.worker_service.dto.request.WorkerSkillRequest;
 import com.Carelio.worker_service.dto.response.WorkerProfileResponse;
@@ -123,27 +124,71 @@ public class WorkerService
         return workerProfileMapper.toResponse(savedProfile);
     }
 
-    public WorkerProfileResponse acceptOrder(Long workerId, Long orderId)
-    {
+    public WorkerProfileResponse acceptOrder(Long workerId, Long orderId) {
         WorkerProfile profile = workerProfileRepository.findById(workerId)
-                .orElseThrow(() -> new EntityNotFoundException("Worker profile not found with id" + workerId));
+                .orElseThrow(() -> new EntityNotFoundException("Worker profile not found with id " + workerId));
 
         if (profile.getStatus() != WorkerStatus.AVAILABLE) {
             throw new RuntimeException("Worker is not available");
         }
 
+        OrderResponse orderDetail;
         try {
+            orderDetail = orderClient.getOrder(orderId);
+        } catch (Exception e)
+        {
+            log.error("Unavailable to take order information from orderService to validate skill ", e);
+            throw new RuntimeException("System interrupted, try again");
+        }
+
+        boolean hasRequiredSkill = workerSkillRepository.existsByWorkerProfile_IdAndEquipmentCategoryIdAndServiceSkill_Id(
+                workerId,
+                orderDetail.getEquipmentCategoryId(),
+                orderDetail.getServiceSkillId()
+        );
+
+        if (!hasRequiredSkill) {
+            throw new RuntimeException("Worker does not have required skill: " + orderDetail.getServiceSkillId());
+        }
+        try
+        {
             orderClient.acceptOrder(orderId);
-        } catch (feign.FeignException e) { // Bắt chính xác FeignException
-            log.error("Lỗi gửi từ Order Service: " + e.contentUTF8()); // In thẳng nội dung lỗi từ bên Order trả về
+        } catch (feign.FeignException e) {
+            log.error("Lỗi gửi từ Order Service: " + e.contentUTF8());
+            throw new RuntimeException("Order service trả về lỗi: " + e.contentUTF8());
+        } catch (Exception e) {
+            log.error("Lỗi kết nối mạng: ", e);
+            throw new RuntimeException("Unable to claim order, please try again");
+        }
+
+        WorkerProfile savedProfile = saveWorkerStatus(profile, WorkerStatus.ON_THE_WAY);
+
+        log.info("Worker {} take order {} and change status to ON_THE_WAY", workerId, orderId);
+        return workerProfileMapper.toResponse(savedProfile);
+    }
+
+    public WorkerProfileResponse startOrder(Long workerId, Long orderId)
+    {
+        WorkerProfile profile = workerProfileRepository.findById(workerId)
+                .orElseThrow(() -> new EntityNotFoundException("Worker profile not found with id" + workerId));
+
+        if (profile.getStatus() != WorkerStatus.ON_THE_WAY) {
+            throw new RuntimeException("Worker (" +profile.getStatus()+ ") is not available");
+        }
+
+        try
+        {
+            orderClient.startOrder(orderId);
+        } catch (feign.FeignException e)
+        { // Bắt chính xác FeignException
+            log.error("Lỗi gửi từ Order Service: " + e.contentUTF8());
             throw new RuntimeException("Order service trả về lỗi: " + e.contentUTF8());
         } catch (Exception e) {
             log.error("Lỗi kết nối mạng: ", e);
             throw new RuntimeException("Unable to claim order, please try again");
         }
         WorkerProfile savedProfile = saveWorkerStatus(profile, WorkerStatus.BUSY);
-
-        log.info("Worker {} take order {} and change status to BUSY", workerId, orderId);
+        log.info("Worker starts order", workerId, orderId);
         return workerProfileMapper.toResponse(savedProfile);
     }
 
@@ -151,13 +196,16 @@ public class WorkerService
     {
         WorkerProfile profile = workerProfileRepository.findById(workerId)
                 .orElseThrow(() -> new EntityNotFoundException("Worker profile not found with id" + workerId));
-        if (profile.getStatus() != WorkerStatus.BUSY) {
+        if (profile.getStatus() != WorkerStatus.BUSY)
+        {
             throw new RuntimeException("Worker status is not suitable to complete order");
         }
 
-        try {
+        try
+        {
             orderClient.completeOrder(orderId);
-        } catch (Exception e) {
+        } catch (Exception e)
+        {
             log.error("Can not call OrderService to claim order", e);
             throw new RuntimeException("Unable to complete order, please try again");
         }

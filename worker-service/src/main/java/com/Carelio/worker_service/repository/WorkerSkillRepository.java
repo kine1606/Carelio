@@ -12,4 +12,6 @@ public interface WorkerSkillRepository extends JpaRepository<WorkerSkill, Long> 
     List<WorkerSkill> findByWorkerProfile_Id(Long id);
 
     boolean existsByWorkerProfile_IdAndServiceSkill_IdAndEquipmentCategoryId(Long workerId, @NotNull Long serviceSkillId, @NotNull Long equipmentCategoryId);
+
+    boolean existsByWorkerProfile_IdAndEquipmentCategoryIdAndServiceSkill_Id(Long workerId, Long equipmentCategoryId, Long serviceSkillId);
 }

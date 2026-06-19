@@ -63,6 +63,14 @@ public class WorkerController {
         return ResponseEntity.ok(workerService.acceptOrder(workerId, orderId));
     }
 
+    //PATCH /api/workers/{workerId}/orders/{orderId}/accept
+    @PatchMapping("/{workerId}/orders/{orderId}/start")
+    public ResponseEntity<WorkerProfileResponse> startOrder(@PathVariable Long workerId,
+                                                             @PathVariable Long orderId)
+    {
+        return ResponseEntity.ok(workerService.startOrder(workerId, orderId));
+    }
+
     //PATCH /api/workers/{workerId}/orders/{orderId}/complete
     @PatchMapping("/{workerId}/orders/{orderId}/complete")
     public ResponseEntity<WorkerProfileResponse> completeOrder(@PathVariable Long workerId,

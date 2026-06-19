@@ -49,6 +49,14 @@ public class OrderService
         return orderMapper.toResponse(order);
     }
 
+    public OrderResponse getById(Long orderId)
+    {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("Order not found with id: " + orderId));
+        log.info("Order found with id: {}", orderId);
+        return orderMapper.toResponse(order);
+    }
+
     //GET /api/orders
     public List<OrderResponse> getAll(Long userId)
     {
@@ -165,7 +173,7 @@ public class OrderService
                 .orElseThrow(() -> new EntityNotFoundException("Order not found with id: " + orderId));
 
         if (order.getStatus() != ServiceOrderStatus.POSTED) {
-            throw new RuntimeException("Current status (" +order.getStatus() +") is unavaiable to work with (Must be POSTED)");
+            throw new RuntimeException("Current status (" +order.getStatus() +") is unavailable to work with (Must be POSTED)");
         }
 
         order.setStatus(ServiceOrderStatus.CLAIMED);
@@ -173,6 +181,25 @@ public class OrderService
         log.info("Order change status to CLAIMED successfully", orderId);
         return orderMapper.toResponse(order);
     }
+
+    //PATCH /api/service-orders/{id}/start
+    @Transactional
+    public OrderResponse processStartOrder(Long orderId)
+    {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("Order not found with id: " + orderId));
+
+        if (!order.getStatus().equals(ServiceOrderStatus.CLAIMED))
+        {
+            throw new RuntimeException("Current status (" +order.getStatus() +") is unavailable to work with (Must be CLAIMED)");
+        }
+
+        order.setStatus(ServiceOrderStatus.IN_PROGRESS);
+        orderRepository.save(order);
+        log.info("Order change status to IN_PROGRESS successfully", orderId);
+        return  orderMapper.toResponse(order);
+    }
+
     //PATCH /api/service-orders/{id}/complete
     @Transactional
     public OrderResponse processCompleteOrder(Long orderId)
@@ -181,7 +208,7 @@ public class OrderService
                 .orElseThrow(() -> new EntityNotFoundException("Order not found with id: " + orderId));
 
         if (order.getStatus() != ServiceOrderStatus.IN_PROGRESS) {
-            throw new RuntimeException("Current status (" +order.getStatus() +") is unavaiable to work with (Must be IN_PROGRESS)");
+            throw new RuntimeException("Current status (" +order.getStatus() +") is unavailable to work with (Must be IN_PROGRESS)");
         }
 
         order.setStatus(ServiceOrderStatus.COMPLETED);

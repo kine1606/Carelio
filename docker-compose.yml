@@ -1,4 +1,7 @@
+version: '3.8'
+
 services:
+  # --- DATABASES LAYER (Cấu hình cũ của bạn) ---
   household-postgres:
     image: postgres:16
     container_name: household-postgres
@@ -35,8 +38,52 @@ services:
     volumes:
       - order_postgres_data:/var/lib/postgresql/data
 
+#  # --- APPLICATION LAYER (Bổ sung 3 Java Services tự chạy) ---
+#  household-service:
+#    build:
+#      context: ./household-service
+#      dockerfile: Dockerfile
+#    container_name: household-service
+#    ports:
+#      - "8082:8082"
+#    environment:
+#      - SPRING_DATASOURCE_URL=jdbc:postgresql://household-postgres:5432/household_db
+#    volumes:
+#      - ./household-service:/app
+#    depends_on:
+#      - household-postgres
+#
+#  worker-service:
+#    build:
+#      context: ./worker-service
+#      dockerfile: Dockerfile
+#    container_name: worker-service
+#    ports:
+#      - "8083:8083"
+#    environment:
+#      - SPRING_DATASOURCE_URL=jdbc:postgresql://worker-postgres:5432/worker_db
+#      - HOUSEHOLD_SERVICE_URL=http://household-service:8082
+#      - ORDER_SERVICE_URL=http://service-order-service:8084
+#    volumes:
+#      - ./worker-service:/app
+#    depends_on:
+#      - worker-postgres
+#
+#  service-order-service:
+#    build:
+#      context: ./service-order-service
+#      dockerfile: Dockerfile
+#    container_name: service-order-service
+#    ports:
+#      - "8084:8084"
+#    environment:
+#      - SPRING_DATASOURCE_URL=jdbc:postgresql://order-postgres:5432/order_db
+#    volumes:
+#      - ./service-order-service:/app
+#    depends_on:
+#      - order-postgres
+
 volumes:
   household_postgres_data:
   worker_postgres_data:
   order_postgres_data:
-
