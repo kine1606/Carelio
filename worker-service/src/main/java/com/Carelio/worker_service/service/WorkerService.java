@@ -134,9 +134,11 @@ public class WorkerService
 
         try {
             orderClient.acceptOrder(orderId);
-        } catch (Exception e)
-        {
-            log.error("Can not call OrderService to claim order", e);
+        } catch (feign.FeignException e) { // Bắt chính xác FeignException
+            log.error("Lỗi gửi từ Order Service: " + e.contentUTF8()); // In thẳng nội dung lỗi từ bên Order trả về
+            throw new RuntimeException("Order service trả về lỗi: " + e.contentUTF8());
+        } catch (Exception e) {
+            log.error("Lỗi kết nối mạng: ", e);
             throw new RuntimeException("Unable to claim order, please try again");
         }
         WorkerProfile savedProfile = saveWorkerStatus(profile, WorkerStatus.BUSY);

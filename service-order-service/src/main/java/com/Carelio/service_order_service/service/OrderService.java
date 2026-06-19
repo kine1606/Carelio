@@ -164,13 +164,13 @@ public class OrderService
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Order not found with id: " + orderId));
 
-        if (order.getStatus() != ServiceOrderStatus.CLAIMED) {
-            throw new RuntimeException("Current status (" +order.getStatus() +") is unavaiable to work with (Must be CLAIMED)");
+        if (order.getStatus() != ServiceOrderStatus.POSTED) {
+            throw new RuntimeException("Current status (" +order.getStatus() +") is unavaiable to work with (Must be POSTED)");
         }
 
-        order.setStatus(ServiceOrderStatus.IN_PROGRESS);
+        order.setStatus(ServiceOrderStatus.CLAIMED);
         orderRepository.save(order);
-        log.info("Order change status to IN_PROGRESS successfully", orderId);
+        log.info("Order change status to CLAIMED successfully", orderId);
         return orderMapper.toResponse(order);
     }
     //PATCH /api/service-orders/{id}/complete
