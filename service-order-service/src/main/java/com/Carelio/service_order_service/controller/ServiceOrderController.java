@@ -5,6 +5,7 @@ import com.Carelio.service_order_service.dto.request.UpdateOrderRequest;
 import com.Carelio.service_order_service.dto.response.OrderResponse;
 import com.Carelio.service_order_service.service.OrderService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,13 +14,15 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/service-orders")
 @RequiredArgsConstructor
+@Slf4j
 public class ServiceOrderController
 {
     private final OrderService orderService;
+
     @GetMapping
     public ResponseEntity<List<OrderResponse>> getAllOrders(@RequestHeader("X-USER-ID") Long userId)
     {
-        return ResponseEntity.ok( orderService.getAll(userId));
+        return ResponseEntity.ok(orderService.getAll(userId));
     }
 
     @GetMapping("/{orderId}")
@@ -27,7 +30,7 @@ public class ServiceOrderController
             @RequestHeader("X-USER-ID") Long userId,
             @PathVariable Long orderId)
     {
-        return ResponseEntity.ok( orderService.getById(userId, orderId));
+        return ResponseEntity.ok(orderService.getById(userId, orderId));
     }
 
     @PostMapping
@@ -54,4 +57,24 @@ public class ServiceOrderController
     {
         return ResponseEntity.ok(orderService.deleteOrder(userId, orderId));
     }
+
+    @PatchMapping("/{orderId}/accept")
+    public void acceptOrder(@PathVariable Long orderId)
+    {
+        orderService.processAcceptOrder(orderId);
+        log.info("cc");
+    }
+
+//    @PatchMapping("/{orderId}/complete")
+
+//    @PatchMapping("/{orderId}/accept")
+//    public ResponseEntity<OrderResponse> acceptOrder(@PathVariable Long orderId)
+//    {
+//        return ResponseEntity.ok(orderService.processAcceptOrder(orderId));
+//    }
+//    @PatchMapping("/{orderId}/complete")
+//    public ResponseEntity<OrderResponse> completeOrder(@PathVariable Long orderId)
+//    {
+//        return ResponseEntity.ok(orderService.processCompleteOrder(orderId));
+//    }
 }

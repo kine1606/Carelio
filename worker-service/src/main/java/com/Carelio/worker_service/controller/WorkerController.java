@@ -54,4 +54,20 @@ public class WorkerController {
     public ResponseEntity<List<WorkerSkillResponse>> getWorkerSkills(@PathVariable Long workerId) {
         return ResponseEntity.ok(workerService.getWorkerSkill(workerId));
     }
+
+    //PATCH /api/workers/{workerId}/orders/{orderId}/accept
+    @PatchMapping("/{workerId}/orders/{orderId}/accept")
+    public ResponseEntity<WorkerProfileResponse> acceptOrder(@PathVariable Long workerId,
+                                                             @PathVariable Long orderId)
+    {
+        return ResponseEntity.ok(workerService.acceptOrder(workerId, orderId));
+    }
+
+    //PATCH /api/workers/{workerId}/orders/{orderId}/complete
+    @PatchMapping("/{workerId}/orders/{orderId}/complete")
+    public ResponseEntity<WorkerProfileResponse> completeOrder(@PathVariable Long workerId,
+                                                               @PathVariable Long orderId)
+    {
+        return ResponseEntity.ok(workerService.completeOrder(workerId,orderId));
+    }
 }

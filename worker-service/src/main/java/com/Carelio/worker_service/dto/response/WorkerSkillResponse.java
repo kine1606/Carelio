@@ -13,7 +13,7 @@ public class WorkerSkillResponse
 {
 
     private Long id;
-    private WorkerProfileSummaryResponse workerProfileResponse;
+    private WorkerProfileResponse workerProfileResponse;
     private ServiceSkillResponse serviceSkillResponse;
 
 //    private EquipmentCategoryResponse

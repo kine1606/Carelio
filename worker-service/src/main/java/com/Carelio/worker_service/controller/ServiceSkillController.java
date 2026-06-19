@@ -30,4 +30,11 @@ public class ServiceSkillController {
     public ResponseEntity<List<ServiceSkillResponse>> getServiceSkills() {
         return ResponseEntity.ok(serviceSkillService.getServiceSkills());
     }
+    // GET /api/service-skills
+    @GetMapping("/{id}")
+    public ResponseEntity<ServiceSkillResponse> getServiceSkills(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(serviceSkillService.getServiceSkillById(id));
+    }
 }

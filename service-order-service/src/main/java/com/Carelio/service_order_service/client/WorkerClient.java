@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
 
-@FeignClient(name="worker-service", url = "${worker.service.url}")
+@FeignClient(name="worker-service",contextId = "orderServiceWorkerClient", url = "${worker.service.url}")
 public interface WorkerClient
 {
     @GetMapping("/api/workers/{workerId}")

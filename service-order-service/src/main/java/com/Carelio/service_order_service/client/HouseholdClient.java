@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 
-@FeignClient(name = "household-service", url = "${household.service.url}")
+@FeignClient(name = "household-service",contextId = "orderServiceHouseholdClient" , url = "${household.service.url}")
 public interface HouseholdClient
 {
     @GetMapping("/api/houses/{houseId}")

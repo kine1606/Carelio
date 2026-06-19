@@ -2,6 +2,7 @@ package com.Carelio.service_order_service.controller;
 
 import com.Carelio.service_order_service.dto.request.OrderAttachmentRequest;
 import com.Carelio.service_order_service.dto.response.OrderAttachmentResponse;
+import com.Carelio.service_order_service.service.OrderAttachmentService;
 import com.Carelio.service_order_service.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,7 @@ import java.util.List;
 public class OrderAttachmentController
 {
     private final OrderService orderService;
+    private final OrderAttachmentService orderAttachmentService;
 
     @PostMapping("/{orderId}/attachments")
     public ResponseEntity<OrderAttachmentResponse> createAttachment(
@@ -22,7 +24,7 @@ public class OrderAttachmentController
             @PathVariable Long orderId,
             @RequestBody OrderAttachmentRequest request)
     {
-        return ResponseEntity.ok(orderService.createAttachment(userId, orderId, request));
+        return ResponseEntity.ok(orderAttachmentService.createAttachment(userId, orderId, request));
     }
 
     @GetMapping("/{orderId}/attachments")
@@ -30,7 +32,7 @@ public class OrderAttachmentController
             @RequestHeader("X-USER-ID") Long userId,
             @PathVariable Long orderId)
     {
-        return ResponseEntity.ok(orderService.getAttachments(userId, orderId));
+        return ResponseEntity.ok(orderAttachmentService.getAttachments(userId, orderId));
     }
 
     @DeleteMapping("/{orderId}/attachments/{attachmentId}")
@@ -39,7 +41,7 @@ public class OrderAttachmentController
             @PathVariable Long orderId,
             @PathVariable Long attachmentId)
     {
-        orderService.deleteAttachment(userId, orderId, attachmentId);
+        orderAttachmentService.deleteAttachment(userId, orderId, attachmentId);
         return ResponseEntity.noContent().build();
     }
 }

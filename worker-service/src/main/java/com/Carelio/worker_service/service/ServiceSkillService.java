@@ -7,6 +7,7 @@ import com.Carelio.worker_service.mapper.ServiceSkillMapper;
 import com.Carelio.worker_service.repository.ServiceSkillRepository;
 import com.Carelio.worker_service.repository.WorkerProfileRepository;
 import com.Carelio.worker_service.repository.WorkerSkillRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,5 +40,11 @@ public class ServiceSkillService
         List<ServiceSkill> serviceSkills = serviceSkillRepository.findAll();
         log.info("Found {} serviceSkills", serviceSkills.size());
         return serviceSkillMapper.toResponseList(serviceSkills);
+    }
+    public ServiceSkillResponse getServiceSkillById(Long serviceSkillId)
+    {
+        ServiceSkill skill= serviceSkillRepository.findById(serviceSkillId)
+                .orElseThrow(() -> new EntityNotFoundException("Service Skill not found with id: " + serviceSkillId));
+        return  serviceSkillMapper.toResponse(skill);
     }
 }

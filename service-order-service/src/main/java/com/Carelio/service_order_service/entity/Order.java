@@ -59,14 +59,15 @@ public class Order
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    @Builder.Default
     private boolean isDeleted = false;
+
     @PrePersist
     public void prePersist()
     {
         if (status == null) {
             status = workerId == null ? ServiceOrderStatus.POSTED : ServiceOrderStatus.CLAIMED;
         }
-        createdAt = LocalDateTime.now();
     }
 
     @PreUpdate

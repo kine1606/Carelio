@@ -2,19 +2,19 @@ package com.Carelio.service_order_service.service;
 
 import com.Carelio.service_order_service.client.HouseholdClient;
 import com.Carelio.service_order_service.client.WorkerClient;
-import com.Carelio.service_order_service.client.dto.*;
-import com.Carelio.service_order_service.dto.request.*;
-import com.Carelio.service_order_service.dto.response.OrderAttachmentResponse;
+import com.Carelio.service_order_service.client.dto.EquipmentValidationResponse;
+import com.Carelio.service_order_service.client.dto.ServiceSkillResponse;
+import com.Carelio.service_order_service.client.dto.WorkerSkillResponse;
+import com.Carelio.service_order_service.client.dto.WorkerStatus;
+import com.Carelio.service_order_service.dto.request.AssignWorkerRequest;
+import com.Carelio.service_order_service.dto.request.OrderRequest;
+import com.Carelio.service_order_service.dto.request.UpdateOrderRequest;
+import com.Carelio.service_order_service.dto.request.UpdateOrderStatusRequest;
 import com.Carelio.service_order_service.dto.response.OrderResponse;
-import com.Carelio.service_order_service.dto.response.OrderReviewResponse;
 import com.Carelio.service_order_service.entity.Order;
-import com.Carelio.service_order_service.entity.OrderAttachment;
-import com.Carelio.service_order_service.entity.OrderReview;
 import com.Carelio.service_order_service.entity.ServiceOrderStatus;
-import com.Carelio.service_order_service.mapper.OrderAttachmentMapper;
 import com.Carelio.service_order_service.mapper.OrderMapper;
 import com.Carelio.service_order_service.mapper.OrderReviewMapper;
-import com.Carelio.service_order_service.repository.OrderAttachmentRepository;
 import com.Carelio.service_order_service.repository.OrderRepository;
 import com.Carelio.service_order_service.repository.OrderReviewRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -34,10 +34,8 @@ import java.util.List;
 public class OrderService
 {
     private final OrderMapper orderMapper;
-    private final OrderAttachmentMapper orderAttachmentMapper;
     private final OrderReviewMapper orderReviewMapper;
     private final OrderRepository orderRepository;
-    private final OrderAttachmentRepository orderAttachmentRepository;
     private final OrderReviewRepository orderReviewRepository;
     private final HouseholdClient householdClient;
     private final WorkerClient workerClient;
@@ -61,6 +59,7 @@ public class OrderService
     }
 
     //POST /api/orders
+    @Transactional
     public OrderResponse createOrder(Long userId, OrderRequest request)
     {
         EquipmentValidationResponse evResponse = householdClient.validate(
@@ -81,6 +80,7 @@ public class OrderService
     }
 
     //DELETE /api/orders/{id}
+    @Transactional
     public OrderResponse deleteOrder(Long userId, Long orderId)
     {
         Order order = getOrderEntity(userId, orderId);
@@ -92,6 +92,7 @@ public class OrderService
     }
 
     //PATCH /api/orders/{id}
+    @Transactional
     public OrderResponse updateOrder(Long userId, Long orderId, UpdateOrderRequest request)
     {
         Order order = getOrderEntity(userId, orderId);
@@ -113,6 +114,7 @@ public class OrderService
 
     //==================WORKFLOW====================
 //    PATCH /api/orders/{id}/assign
+    @Transactional
     public OrderResponse assignWorker(Long userId, Long orderId, AssignWorkerRequest workerRequest) throws Exception
     {
         // status = PENDING
@@ -155,9 +157,41 @@ public class OrderService
         return orderRepository.save(order);
     }
 
-    //PATCH /api/orders/{id}/accept
+    //PATCH /api/service-orders/{id}/accept
+    @Transactional
+    public OrderResponse processAcceptOrder(Long orderId)
+    {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("Order not found with id: " + orderId));
+
+        if (order.getStatus() != ServiceOrderStatus.CLAIMED) {
+            throw new RuntimeException("Current status (" +order.getStatus() +") is unavaiable to work with (Must be CLAIMED)");
+        }
+
+        order.setStatus(ServiceOrderStatus.IN_PROGRESS);
+        orderRepository.save(order);
+        log.info("Order change status to IN_PROGRESS successfully", orderId);
+        return orderMapper.toResponse(order);
+    }
+    //PATCH /api/service-orders/{id}/complete
+    @Transactional
+    public OrderResponse processCompleteOrder(Long orderId)
+    {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("Order not found with id: " + orderId));
+
+        if (order.getStatus() != ServiceOrderStatus.IN_PROGRESS) {
+            throw new RuntimeException("Current status (" +order.getStatus() +") is unavaiable to work with (Must be IN_PROGRESS)");
+        }
+
+        order.setStatus(ServiceOrderStatus.COMPLETED);
+        orderRepository.save(order);
+        log.info("Order change status to COMPLETED successfully", orderId);
+        return  orderMapper.toResponse(order);
+    }
 
     //PATCH /api/orders/{id}/status
+    @Transactional
     public OrderResponse updateStatus(Long userId, Long orderId, UpdateOrderStatusRequest request)
     {
         Order order = getOrderEntity(userId, orderId);
@@ -167,75 +201,5 @@ public class OrderService
         return orderMapper.toResponse(saved);
     }
 
-    //===========================================Order Attachment==================================================
-    //POST /api/orders/{id}/attachments
-    public OrderAttachmentResponse createAttachment(Long userId, Long orderId, OrderAttachmentRequest request)
-    {
-        getOrderEntity(userId, orderId);
-        OrderAttachment attachment = OrderAttachment.builder()
-                .fileUrl(request.getFileUrl())
-                .fileType(request.getFileType())
-                .uploadedBy(request.getUploadedBy())
-                .orderId(orderId).build();
-        OrderAttachment saved = orderAttachmentRepository.save(attachment);
-        log.info("Attachment created successfully: {}", attachment.getId());
-        return orderAttachmentMapper.toResponse(saved);
-    }
 
-    //GET /api/orders/{id}/attachments
-    public List<OrderAttachmentResponse> getAttachments(Long userId, Long orderId)
-    {
-        // Verify the order belongs to this user
-        getOrderEntity(userId, orderId);
-        List<OrderAttachment> attachments = orderAttachmentRepository.findAllByOrderId(orderId);
-        log.info("Found {} attachments for orderId: {}", attachments.size(), orderId);
-        return orderAttachmentMapper.toResponseList(attachments);
-    }
-
-    //DELETE /api/orders/{id}/attachments/{attachmentId}
-    public void deleteAttachment(Long userId, Long orderId, Long attachmentId)
-    {
-        // Verify the order belongs to this user
-        getOrderEntity(userId, orderId);
-        OrderAttachment attachment = orderAttachmentRepository.findByIdAndOrderId(attachmentId, orderId)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Attachment not found with id: " + attachmentId + " for orderId: " + orderId));
-        orderAttachmentRepository.delete(attachment);
-        log.info("Attachment deleted successfully: {}", attachmentId);
-    }
-//===========================================Order Review==================================================
-
-    //POST /api/orders/{orderId}/reviews
-    public OrderReviewResponse createReview(Long userId, Long orderId, OrderReviewRequest request)
-    {
-        Order order = getOrderEntity(userId, orderId);
-        if (order.getStatus() != ServiceOrderStatus.COMPLETED) {
-            throw new IllegalStateException("Order must be COMPLETED before submitting a review.");
-        }
-        if (orderReviewRepository.findByOrderIdAndUserId(orderId, userId).isPresent()) {
-            throw new IllegalStateException("You have already reviewed this order.");
-        }
-        OrderReview review = OrderReview.builder()
-                .orderId(orderId)
-                .userId(userId)
-                .workerId(order.getWorkerId())
-                .rating(request.getRating())
-                .comment(request.getComment())
-                .build();
-        OrderReview saved = orderReviewRepository.save(review);
-
-        // update RatingAvg of worker after done reviewing
-        workerClient.updateRating(review.getWorkerId(), review.getRating());
-        log.info("Review created successfully for orderId: {}", orderId);
-        return orderReviewMapper.toResponse(saved);
-    }
-
-    //GET /api/orders/{orderId}/reviews
-    public List<OrderReviewResponse> getReviews(Long userId, Long orderId)
-    {
-        getOrderEntity(userId, orderId);
-        List<OrderReview> reviews = orderReviewRepository.findAllByOrderId(orderId);
-        log.info("Found {} reviews for orderId: {}", reviews.size(), orderId);
-        return orderReviewMapper.toResponseList(reviews);
-    }
 }

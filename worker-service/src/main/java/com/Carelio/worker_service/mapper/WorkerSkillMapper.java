@@ -2,7 +2,7 @@ package com.Carelio.worker_service.mapper;
 
 import com.Carelio.worker_service.dto.request.WorkerSkillRequest;
 import com.Carelio.worker_service.dto.response.ServiceSkillResponse;
-import com.Carelio.worker_service.dto.response.WorkerProfileSummaryResponse;
+import com.Carelio.worker_service.dto.response.WorkerProfileResponse;
 import com.Carelio.worker_service.dto.response.WorkerSkillResponse;
 import com.Carelio.worker_service.entity.ServiceSkill;
 import com.Carelio.worker_service.entity.WorkerProfile;
@@ -18,19 +18,23 @@ public interface WorkerSkillMapper
 {
     WorkerSkill toEntity(WorkerSkillRequest workerSkillRequest);
 
-    @Mapping(target = "workerProfileResponse", source = "workerProfile", qualifiedByName = "toWorkerProfileSummary")
+    @Mapping(target = "workerProfileResponse", source = "workerProfile", qualifiedByName = "toWorkerProfile")
     @Mapping(target = "serviceSkillResponse", source = "serviceSkill", qualifiedByName = "toServiceSkillRes")
     @Mapping(target = "equipmentCategoryName", source = "equipmentCategoryName")
     WorkerSkillResponse toResponse(WorkerSkill workerSkill);
 
     List<WorkerSkillResponse> toResponseList(List<WorkerSkill> skills);
 
-    @Named("toWorkerProfileSummary")
-    default WorkerProfileSummaryResponse toWorkerProfileSummary(WorkerProfile profile) {
+    @Named("toWorkerProfile")
+    default WorkerProfileResponse toWorkerProfile(WorkerProfile profile) {
         if (profile == null) return null;
-        return WorkerProfileSummaryResponse.builder()
+        return WorkerProfileResponse.builder()
                 .id(profile.getId())
                 .userId(profile.getUserId())
+                .status(profile.getStatus())
+                .bio(profile.getBio())
+                .ratingAvg(profile.getRatingAvg())
+                .totalJobs(profile.getTotalJobs())
                 .build();
     }
 

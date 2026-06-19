@@ -2,7 +2,7 @@ package com.Carelio.service_order_service.controller;
 
 import com.Carelio.service_order_service.dto.request.OrderReviewRequest;
 import com.Carelio.service_order_service.dto.response.OrderReviewResponse;
-import com.Carelio.service_order_service.service.OrderService;
+import com.Carelio.service_order_service.service.OrderReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,7 +14,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OrderReviewController
 {
-    private final OrderService orderService;
+    private final OrderReviewService orderReviewService;
 
     @PostMapping("/{orderId}/reviews")
     public ResponseEntity<OrderReviewResponse> createReview(
@@ -22,7 +22,7 @@ public class OrderReviewController
             @PathVariable Long orderId,
             @RequestBody OrderReviewRequest request)
     {
-        return ResponseEntity.ok(orderService.createReview(userId, orderId, request));
+        return ResponseEntity.ok(orderReviewService.createReview(userId, orderId, request));
     }
 
     @GetMapping("/{orderId}/reviews")
@@ -30,6 +30,6 @@ public class OrderReviewController
             @RequestHeader("X-USER-ID") Long userId,
             @PathVariable Long orderId)
     {
-        return ResponseEntity.ok(orderService.getReviews(userId, orderId));
+        return ResponseEntity.ok(orderReviewService.getReviews(userId, orderId));
     }
 }
