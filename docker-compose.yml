@@ -38,6 +38,47 @@ services:
     volumes:
       - order_postgres_data:/var/lib/postgresql/data
 
+
+  # --- DATABASE CHO KEYCLOAK ---
+  keycloak-postgres:
+    image: postgres:16
+    container_name: keycloak-postgres
+    environment:
+      POSTGRES_DB: keycloak_db
+      POSTGRES_USER: keycloak_admin
+      POSTGRES_PASSWORD: keycloak_password
+    ports:
+      - "5437:5432"
+    volumes:
+      - keycloak_postgres_data:/var/lib/postgresql/data
+
+  user-postgres:
+    image: postgres:16
+    container_name: user-postgres
+    environment:
+      POSTGRES_DB: user_db
+      POSTGRES_USER: user_service
+      POSTGRES_PASSWORD: user_password
+    ports:
+      - "5438:5432"
+    volumes:
+      - user_postgres_data:/var/lib/postgresql/data
+  # --- IDENTITY PROVIDER (KEYCLOAK SERVER) ---
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: carelio-keycloak
+    command: start-dev
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://keycloak-postgres:5432/keycloak_db
+      - KC_DB_USERNAME=keycloak_admin
+      - KC_DB_PASSWORD=keycloak_password
+    ports:
+      - "8080:8080"
+    depends_on:
+      - keycloak-postgres
 #  # --- APPLICATION LAYER (Bổ sung 3 Java Services tự chạy) ---
 #  household-service:
 #    build:
@@ -70,7 +111,7 @@ services:
 #      - worker-postgres
 #
 #  service-order-service:
-#    build:
+#    build:t st
 #      context: ./service-order-service
 #      dockerfile: Dockerfile
 #    container_name: service-order-service
@@ -87,3 +128,5 @@ volumes:
   household_postgres_data:
   worker_postgres_data:
   order_postgres_data:
+  keycloak_postgres_data:
+  user_postgres_data:
