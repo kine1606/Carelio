@@ -6,6 +6,9 @@ import com.Carelio.household_service.dto.response.RoomResponse;
 import com.Carelio.household_service.service.RoomService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,46 +23,55 @@ public class RoomController
 
     // GET /api/rooms
     @GetMapping
+//    @PreAuthorize("hasRole('CUSTOMER')")
     public List<RoomResponse> getAll(
-            @RequestHeader("X-USER-ID") Long ownerId)
+            @AuthenticationPrincipal Jwt jwt
+    )
     {
-        return roomService.getAll(ownerId);
+        String userId = jwt.getSubject();
+        return roomService.getAll(userId);
     }
 
     // GET /api/rooms/{id}
     @GetMapping("/{id}")
+//    @PreAuthorize("hasRole('CUSTOMER')")
     public RoomResponse getById(
-            @RequestHeader("X-USER-ID") Long ownerId,
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id)
     {
-        return roomService.getById(ownerId, id);
+        String userId = jwt.getSubject();
+        return roomService.getById(userId, id);
     }
 
     // POST /api/rooms
     @PostMapping
+    @PreAuthorize("hasRole('CUSTOMER')")
     public RoomResponse createRoom(
-            @RequestHeader("X-USER-ID") Long ownerId,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestBody @Valid CreateRoomRequest request)
     {
-        return roomService.createRoom(ownerId, request);
+        String userId = jwt.getSubject();
+        return roomService.createRoom(userId, request);
     }
 
     // PATCH /api/rooms/{id}
     @PatchMapping("/{roomId}")
     public RoomResponse updateRoom(
-            @RequestHeader("X-USER-ID") Long ownerId,
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long roomId,
             @RequestBody @Valid UpdateRoomRequest request)
     {
-        return roomService.updateRoom(ownerId, roomId, request);
+        String userId = jwt.getSubject();
+        return roomService.updateRoom(userId, roomId, request);
     }
 
 //     DELETE /api/rooms/{id}
     @DeleteMapping("/{id}")
     public RoomResponse delete(
-            @RequestHeader("X-USER-ID") Long ownerId,
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id)
     {
-        return roomService.softDelete(ownerId, id);
+        String userId = jwt.getSubject();
+        return roomService.softDelete(userId, id);
     }
 }

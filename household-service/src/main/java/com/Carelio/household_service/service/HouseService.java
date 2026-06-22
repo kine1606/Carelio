@@ -23,7 +23,7 @@ public class HouseService
     private final HouseRepository houseRepository;
     private final HouseMapper houseMapper;
 
-    public HouseResponse create(Long userId, CreateHouseRequest request)
+    public HouseResponse create(String userId, CreateHouseRequest request)
     {
         House house = houseMapper.toEntity(request);
         house.setUserId(userId);
@@ -33,19 +33,19 @@ public class HouseService
         return houseMapper.toResponse(saved);
     }
 
-    public List<HouseResponse> getAll(Long userId) {
-        List<House> houses = houseRepository.findByUserId(userId);
+    public List<HouseResponse> getAll(String userId) {
+        List<House> houses = houseRepository.findByUserIdAndIsDeletedFalse(userId);
         return houseMapper.toResponseList(houses);
     }
 
-    public HouseResponse getById(Long userId, Long houseId) {
+    public HouseResponse getById(String userId, Long houseId) {
         House house = houseRepository.findByIdAndUserId(houseId, userId)
                 .orElseThrow(() -> new RuntimeException("House not found with id: " + houseId));
 
         return houseMapper.toResponse(house);
     }
 
-    public HouseResponse update(Long userId, Long houseId, UpdateHouseRequest request)
+    public HouseResponse update(String userId, Long houseId, UpdateHouseRequest request)
     {
         House house = houseRepository.findByIdAndUserId(houseId, userId)
                 .orElseThrow(() -> new RuntimeException("House not found with id: " + houseId));
@@ -55,11 +55,13 @@ public class HouseService
         return houseMapper.toResponse(saved);
     }
 
-//    public void delete(Long userId, Long houseId) {
-//        House house = houseRepository.findById(houseId)
-//                .filter(h -> h.getUserId().equals(userId))
-//                .orElseThrow(() -> new RuntimeException("House not found"));
-//
-//        houseRepository.delete(house);
-//    }
+    public HouseResponse delete(String userId, Long houseId)
+    {
+        House house = houseRepository.findByIdAndUserId(houseId, userId)
+                .orElseThrow(() -> new RuntimeException("House not found with id: " + houseId));
+        house.setDeleted(true);
+        House saved = houseRepository.save(house);
+        log.info("House {} is deleted successfully", saved.getId());
+        return houseMapper.toResponse(saved);
+    }
 }

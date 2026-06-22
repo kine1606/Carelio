@@ -7,6 +7,8 @@ import com.Carelio.household_service.dto.response.EquipmentValidationResponse;
 import com.Carelio.household_service.service.EquipmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,58 +19,68 @@ import java.util.List;
 public class EquipmentController
 {
     private final EquipmentService equipmentService;
+
     // GET /api/equipments
     @GetMapping
     public List<EquipmentResponse> getEquipments(
-            @RequestHeader("X-USER-ID") Long userId
+            @AuthenticationPrincipal Jwt jwt
     )
     {
+        String userId = jwt.getSubject();
         return equipmentService.getAll(userId);
     }
 
     // GET /api/equipments/{equipmentId}
     @GetMapping("/{equipmentId}")
     public EquipmentResponse getEquipmentById(
-            @RequestHeader("X-USER-ID") Long userId,
-            @PathVariable Long equipmentId)
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long equipmentId
+    )
     {
+        String userId = jwt.getSubject();
         return equipmentService.getById(userId, equipmentId);
     }
 
     // POST /api/equipments
     @PostMapping
     public EquipmentResponse createEquipment(
-            @RequestHeader("X-USER-ID") Long userId,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestBody @Valid CreateEquipmentRequest res)
     {
+        String userId = jwt.getSubject();
         return equipmentService.createEquipment(userId, res);
     }
 
     @PatchMapping("/{id}")
     public EquipmentResponse updateEquipment(
-            @RequestHeader("X-USER-ID") Long userId,
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id,
             @RequestBody @Valid UpdateEquipmentRequest res)
     {
+        String userId = jwt.getSubject();
         return equipmentService.updateEquipment(userId, id, res);
     }
 
     @GetMapping("/{id}/validate")
     public EquipmentValidationResponse validateEquipment(
-            @RequestHeader("X-USER-ID") Long userId,
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id,
             @RequestParam Long roomId,
             @RequestParam Long houseId
     )
     {
+        String userId = jwt.getSubject();
         return equipmentService.validateEquipment(userId, id, roomId, houseId);
     }
 
-    // not done
-//    @DeleteMapping("/{id}")
-//    public void delete(@PathVariable Long id)
-//    {
-//        equipmentService.delete(id);
-//    }
+    @DeleteMapping("/{id}")
+    public void delete(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long id
+    )
+    {
+        String userId = jwt.getSubject();
+        equipmentService.deleteEquipment(userId, id);
+    }
 }
 

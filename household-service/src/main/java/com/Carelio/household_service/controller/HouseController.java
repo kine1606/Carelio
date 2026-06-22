@@ -7,6 +7,8 @@ import com.Carelio.household_service.service.HouseService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,43 +22,48 @@ public class HouseController {
 
     @PostMapping
     public ResponseEntity<HouseResponse> create(
-            @RequestHeader("X-USER-ID") Long userId,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestBody @Valid CreateHouseRequest request
     )
     {
+        String userId = jwt.getSubject();
         return ResponseEntity.ok(houseService.create(userId, request));
     }
 
     @GetMapping
     public ResponseEntity<List<HouseResponse>> getAll(
-            @RequestHeader("X-USER-ID") Long userId
+            @AuthenticationPrincipal Jwt jwt
     ) {
+        String userId = jwt.getSubject();
         return ResponseEntity.ok(houseService.getAll(userId));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<HouseResponse> getById(
-            @RequestHeader("X-USER-ID") Long userId,
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id
     ) {
+        String userId = jwt.getSubject();
         return ResponseEntity.ok(houseService.getById(userId, id));
     }
 
     @PatchMapping("/{id}")
     public ResponseEntity<HouseResponse> update(
-            @RequestHeader("X-USER-ID") Long userId,
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id,
             @RequestBody @Valid UpdateHouseRequest request
     )
     {
+        String userId = jwt.getSubject();
         return ResponseEntity.ok(houseService.update(userId,id, request));
     }
-//    @DeleteMapping("/{id}")
-//    public ResponseEntity<Void> delete(
-//            @RequestHeader("X-USER-ID") Long userId,
-//            @PathVariable Long id
-//    ) {
-//        houseService.delete(userId, id);
-//        return ResponseEntity.noContent().build();
-//    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<HouseResponse> delete(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long id
+    ) {
+        String userId = jwt.getSubject();
+        return ResponseEntity.ok(houseService.delete(userId, id));
+    }
 }

@@ -27,7 +27,7 @@ public class RoomService
     private final RoomRepository roomRepository;
     private final RoomMapper roomMapper;
     private final HouseRepository houseRepository;
-    public List<RoomResponse> getAll(Long userId)
+    public List<RoomResponse> getAll(String userId)
     {
         log.info("Get rooms by ownerId = {}", userId);
 //        List<Room> rooms = roomRepository.findByOwnerIdAndDeletedFalse(ownerId);
@@ -36,7 +36,7 @@ public class RoomService
         return roomMapper.toResponseList(rooms);
     }
 
-    public RoomResponse getById(Long userId, Long roomId)
+    public RoomResponse getById(String userId, Long roomId)
     {
         Room room = roomRepository.findByIdAndHouse_UserId(roomId, userId)
                 .orElseThrow(() -> new EntityNotFoundException("Room not found with id: " +  roomId));
@@ -44,7 +44,7 @@ public class RoomService
     }
 
     @Transactional
-    public RoomResponse createRoom(Long userId, CreateRoomRequest request)
+    public RoomResponse createRoom(String userId, CreateRoomRequest request)
     {
         House house = houseRepository.findByIdAndUserId(request.getHouseId(), userId)
                 .orElseThrow(() -> new EntityNotFoundException("House not found with id: " +  request.getHouseId()));
@@ -56,7 +56,7 @@ public class RoomService
     }
 
     @Transactional
-    public RoomResponse updateRoom(Long userId, Long roomId, UpdateRoomRequest req)
+    public RoomResponse updateRoom(String userId, Long roomId, UpdateRoomRequest req)
     {
         Room room = roomRepository.findByIdAndHouse_UserId(roomId, userId)
                 .orElseThrow(() -> new EntityNotFoundException("Room not found with id: " +  roomId));
@@ -72,7 +72,7 @@ public class RoomService
     }
 
     @Transactional
-    public RoomResponse softDelete(Long ownerId, Long id)
+    public RoomResponse softDelete(String ownerId, Long id)
     {
         Room room = roomRepository.findByIdAndHouse_UserId(id, ownerId)
                 .orElseThrow(() -> new EntityNotFoundException("Room not found with id: " +  id));

@@ -34,14 +34,14 @@ public class EquipmentService
     private final EquipmentCategoryRepository equipmentCategoryRepository;
     private final HouseRepository houseRepository;
 
-    public List<EquipmentResponse> getAll(Long userId)
+    public List<EquipmentResponse> getAll(String userId)
     {
         List<Equipment> equipments = equipmentRepository.findAllByDeletedFalseAndRoom_House_UserId(userId);
         log.info("found {} equipment with userId: {}", equipments.size(), userId);
         return equipmentMapper.toResponseList(equipments);
     }
 
-    public EquipmentResponse getById(Long userId, Long id)
+    public EquipmentResponse getById(String userId, Long id)
     {
         Equipment e = equipmentRepository.findByIdAndRoom_House_UserId(id, userId)
                 .orElseThrow(() -> new EntityNotFoundException("Equipment not found with id:" + id));
@@ -49,7 +49,7 @@ public class EquipmentService
         return equipmentMapper.toResponse(e);
     }
 
-    public List<EquipmentResponse> getEquipmentsByRoom(Long userId, Long roomId)
+    public List<EquipmentResponse> getEquipmentsByRoom(String userId, Long roomId)
     {
         Room room = roomRepository
                 .findByIdAndHouse_UserId(roomId, userId)
@@ -62,7 +62,7 @@ public class EquipmentService
     }
 
     @Transactional
-    public EquipmentResponse createEquipment(Long userId, CreateEquipmentRequest req)
+    public EquipmentResponse createEquipment(String userId, CreateEquipmentRequest req)
     {
         Room room = roomRepository.findByIdAndHouse_UserId(req.getRoomId(), userId)
                 .orElseThrow(() -> new EntityNotFoundException("Room not found or not owned by user"));
@@ -79,7 +79,7 @@ public class EquipmentService
     }
 
     @Transactional
-    public EquipmentResponse updateEquipment(Long userId, Long equipmentId, UpdateEquipmentRequest req)
+    public EquipmentResponse updateEquipment(String userId, Long equipmentId, UpdateEquipmentRequest req)
     {
         Equipment e = equipmentRepository.findByIdAndRoom_House_UserId(equipmentId, userId)
                 .orElseThrow(() -> new EntityNotFoundException("Equipment not found with id:" + equipmentId));
@@ -100,7 +100,16 @@ public class EquipmentService
         return equipmentMapper.toResponse(savedEquipment);
     }
 
-    public EquipmentValidationResponse validateEquipment(Long userId,
+    public EquipmentResponse deleteEquipment(String userId, Long id)
+    {
+        Equipment e = equipmentRepository.findByIdAndRoom_House_UserId(id, userId)
+                .orElseThrow(() -> new EntityNotFoundException("Equipment not found with id:" + id));
+        e.setDeleted(true);
+        equipmentRepository.save(e);
+        log.info("Equipment {} is deleted successfully", id);
+        return equipmentMapper.toResponse(e);
+    }
+    public EquipmentValidationResponse validateEquipment(String userId,
                                                          Long equipmentId,
                                                          Long roomId,
                                                          Long houseId)
