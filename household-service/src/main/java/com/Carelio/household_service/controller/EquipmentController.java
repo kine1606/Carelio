@@ -7,6 +7,7 @@ import com.Carelio.household_service.dto.response.EquipmentValidationResponse;
 import com.Carelio.household_service.service.EquipmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +17,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/equipments")
+@PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
 public class EquipmentController
 {
     private final EquipmentService equipmentService;

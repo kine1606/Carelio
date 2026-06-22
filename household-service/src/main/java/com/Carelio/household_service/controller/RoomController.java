@@ -16,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/rooms")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
 public class RoomController
 {
 
@@ -23,7 +24,6 @@ public class RoomController
 
     // GET /api/rooms
     @GetMapping
-//    @PreAuthorize("hasRole('CUSTOMER')")
     public List<RoomResponse> getAll(
             @AuthenticationPrincipal Jwt jwt
     )
@@ -34,7 +34,6 @@ public class RoomController
 
     // GET /api/rooms/{id}
     @GetMapping("/{id}")
-//    @PreAuthorize("hasRole('CUSTOMER')")
     public RoomResponse getById(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id)
@@ -45,7 +44,6 @@ public class RoomController
 
     // POST /api/rooms
     @PostMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
     public RoomResponse createRoom(
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody @Valid CreateRoomRequest request)

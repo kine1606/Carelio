@@ -58,7 +58,7 @@ public class Equipment
     @LastModifiedDate
     private LocalDateTime updatedAt;
     // soft delete
-    private Boolean deleted = false;
+    private Boolean isDeleted = false;
 
 
     @PrePersist

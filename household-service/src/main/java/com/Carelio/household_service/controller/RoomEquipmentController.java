@@ -3,6 +3,7 @@ package com.Carelio.household_service.controller;
 import com.Carelio.household_service.dto.response.EquipmentResponse;
 import com.Carelio.household_service.service.EquipmentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/rooms")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
 public class RoomEquipmentController
 {
 

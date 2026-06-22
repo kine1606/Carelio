@@ -4,9 +4,11 @@ package com.Carelio.household_service.controller;
 import com.Carelio.household_service.dto.request.CreateCategoryRequest;
 import com.Carelio.household_service.dto.response.CategoryResponse;
 import com.Carelio.household_service.service.EquipmentCategoryService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +20,7 @@ import java.util.List;
 @RequestMapping("/api/equipment-category")
 @RequiredArgsConstructor
 @Slf4j
+
 public class EquipmentCategoryController
 {
     private final EquipmentCategoryService equipmentCategoryService;
@@ -35,10 +38,10 @@ public class EquipmentCategoryController
     }
 
     @PostMapping
-//    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CategoryResponse> createCategory(
             @AuthenticationPrincipal Jwt jwt,
-            CreateCategoryRequest req)
+            @RequestBody @Valid CreateCategoryRequest req)
     {
         String userId = jwt.getSubject();
         CategoryResponse categoryResponse = equipmentCategoryService.createCategory(req);
@@ -47,10 +50,11 @@ public class EquipmentCategoryController
     }
 
     @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CategoryResponse> updateCategory(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id,
-            @RequestBody CreateCategoryRequest request)
+            @RequestBody @Valid CreateCategoryRequest request)
     {
         String userId = jwt.getSubject();
         CategoryResponse categoryResponse = equipmentCategoryService.updateCategory(id, request);
