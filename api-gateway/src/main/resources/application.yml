@@ -1,0 +1,45 @@
+server:
+  port: 8000
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      routes:
+        # 1. Tuyến đường cho USER-SERVICE (Chỉ nhận /api/users/**)
+        - id: user-service-route
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/users/**
+
+        # 2. Tuyến đường cho WORKER-SERVICE (Trỏ đúng về cổng 8083 của Thợ)
+        - id: worker-service-route
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/workers/**
+
+        # 3. Tuyến đường cho HOUSEHOLD-SERVICE
+        - id: household-service-route
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/houses/**
+
+        # 4. Tuyến đường cho SERVICE-ORDER-SERVICE
+        - id: order-service-route
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/service-orders/**
+
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*" # Sau này chạy production thì thay bằng domain cụ thể
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
