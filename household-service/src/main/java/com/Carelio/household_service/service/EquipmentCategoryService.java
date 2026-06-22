@@ -40,13 +40,13 @@ public class EquipmentCategoryService
         return categoryMapper.toResponse(saved);
     }
 
-
-//    public void delete(Long id)
-//    {
-//        EquipmentCategory ec = getById(id);
-//        if (!ec.getEquipments().isEmpty()) {
-//            throw new RuntimeException("Equipment category has equipment(s)");
-//        }
-//        equipmentCategoryRepository.delete(ec);
-//    }
+    public CategoryResponse updateCategory(Long id, CreateCategoryRequest req)
+    {
+        EquipmentCategory ec = equipmentCategoryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Equipment category not found with id: " + id));
+        ec.setName( req.getName() );
+        EquipmentCategory saved = equipmentCategoryRepository.save(ec);
+        log.info("Category updated with id: {}", saved.getId());
+        return categoryMapper.toResponse(saved);
+    }
 }
