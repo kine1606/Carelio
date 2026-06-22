@@ -1,7 +1,5 @@
-version: '3.8'
-
 services:
-  # --- DATABASES LAYER (Cấu hình cũ của bạn) ---
+  # --- DATABASES LAYER ---
   household-postgres:
     image: postgres:16
     container_name: household-postgres
@@ -38,8 +36,6 @@ services:
     volumes:
       - order_postgres_data:/var/lib/postgresql/data
 
-
-  # --- DATABASE CHO KEYCLOAK ---
   keycloak-postgres:
     image: postgres:16
     container_name: keycloak-postgres
@@ -63,6 +59,7 @@ services:
       - "5438:5432"
     volumes:
       - user_postgres_data:/var/lib/postgresql/data
+
   # --- IDENTITY PROVIDER (KEYCLOAK SERVER) ---
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
@@ -79,7 +76,34 @@ services:
       - "8080:8080"
     depends_on:
       - keycloak-postgres
-#  # --- APPLICATION LAYER (Bổ sung 3 Java Services tự chạy) ---
+
+  # --- API GATEWAY ---
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - SPRING_CLOUD_GATEWAY_ROUTES_0_URI=http://user-service:8081
+      - SPRING_CLOUD_GATEWAY_ROUTES_2_URI=http://household-service:8082
+      - SPRING_CLOUD_GATEWAY_ROUTES_1_URI=http://worker-service:8083
+      - SPRING_CLOUD_GATEWAY_ROUTES_3_URI=http://service-order-service:8084
+
+#  # --- APPLICATION LAYER (Mở comment ra khi đã có đầy đủ Dockerfile ở các thư mục con) ---
+#  user-service:
+#    build:
+#      context: ./user-service
+#      dockerfile: Dockerfile
+#    container_name: user-service
+#    ports:
+#      - "8081:8081"
+#    environment:
+#      - SPRING_DATASOURCE_URL=jdbc:postgresql://user-postgres:5432/user_db
+#    depends_on:
+#      - user-postgres
+#
 #  household-service:
 #    build:
 #      context: ./household-service
@@ -111,7 +135,7 @@ services:
 #      - worker-postgres
 #
 #  service-order-service:
-#    build:t st
+#    build:
 #      context: ./service-order-service
 #      dockerfile: Dockerfile
 #    container_name: service-order-service
