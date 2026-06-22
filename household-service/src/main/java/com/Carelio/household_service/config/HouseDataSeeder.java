@@ -26,15 +26,18 @@ public class HouseDataSeeder implements CommandLineRunner
 
         LocalDateTime now = LocalDateTime.now();
 
+        String keycloakUser1 = "51c6c640-fe50-4e87-b72f-a49396f1c830"; // kineline
+        String keycloakUser2 = "c83a7b12-91d4-4f62-bc8a-123456789abc";
+
         List<House> houses = List.of(
                 House.builder()
-                        .userId(1L)
+                        .userId(keycloakUser1)
                         .addressLine("Default address for user 1")
                         .createdAt(now)
                         .updatedAt(now)
                         .build(),
                 House.builder()
-                        .userId(2L)
+                        .userId(keycloakUser2)
                         .addressLine("Default address for user 2")
                         .createdAt(now)
                         .updatedAt(now)

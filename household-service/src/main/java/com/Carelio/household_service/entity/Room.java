@@ -1,7 +1,6 @@
 package com.Carelio.household_service.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Positive;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -22,12 +21,9 @@ public class Room
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long userId;
-
     @Column(nullable = false)
     private String name;
 
-    @Positive
     private Integer floor;
     private String description;
 
@@ -46,7 +42,7 @@ public class Room
     private LocalDateTime updatedAt;
 
     // softly delete
-    private Boolean deleted = false;
+    private Boolean isDeleted = false;
 
     @PrePersist
     public void prePersist()

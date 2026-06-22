@@ -30,28 +30,24 @@ public class EquipmentCategoryDataSeeder implements CommandLineRunner {
                         .name("Máy lạnh")
                         .createdAt(now)
                         .updatedAt(now)
-                        .deleted(false)
                         .build(),
 
                 EquipmentCategory.builder()
                         .name("Tivi")
                         .createdAt(now)
                         .updatedAt(now)
-                        .deleted(false)
                         .build(),
 
                 EquipmentCategory.builder()
                         .name("Tủ lạnh")
                         .createdAt(now)
                         .updatedAt(now)
-                        .deleted(false)
                         .build(),
 
                 EquipmentCategory.builder()
                         .name("Máy giặt")
                         .createdAt(now)
                         .updatedAt(now)
-                        .deleted(false)
                         .build()
         );
 

@@ -13,11 +13,11 @@ public interface EquipmentRepository extends JpaRepository<Equipment, Long>
 {
     List<Equipment> findByRoom_IdAndRoom_House_UserId(Long roomId, Long userId);
 
-    List<Equipment> findAllByDeletedFalseAndRoom_House_UserId(Long userId);
+    List<Equipment> findAllByDeletedFalseAndRoom_House_UserId(String userId);
 
-    Optional<Equipment> findByIdAndRoom_House_UserId(Long id, Long userId);
+    Optional<Equipment> findByIdAndRoom_House_UserId(Long id, String userId);
 
     List<Equipment> findByRoom_Id(Long id);
 
-    Optional<Equipment> findByIdAndRoom_Id(Long equipmentId, Long userId);
+    Optional<Equipment> findByIdAndRoom_Id(Long equipmentId, String userId);
 }

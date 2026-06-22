@@ -21,7 +21,7 @@ public class House
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long userId;
+    private String userId;
     private String addressLine;
 
     @OneToMany(mappedBy="house", cascade = CascadeType.ALL)
@@ -34,6 +34,7 @@ public class House
     @LastModifiedDate
     private LocalDateTime updatedAt;
 
+    boolean isDeleted = false;
     @PrePersist
     public void prePersist()
     {

@@ -12,11 +12,13 @@ import java.util.Optional;
 @Repository
 public interface RoomRepository extends JpaRepository<Room, Long>
 {
-    boolean existsByIdAndHouse_UserId(Long roomId, Long userId);
+    boolean existsByIdAndHouse_UserId(Long roomId, String userId);
 
-    Optional<Room> findByIdAndHouse_UserId(@NotNull(message = "Room id is required") Long roomId, Long userId);
+    Optional<Room> findByIdAndHouse_UserId(@NotNull(message = "Room id is required") Long roomId, String userId);
 
-    List<Room> findByHouse_UserId(Long ownerId);
+    List<Room> findByHouse_UserId(String ownerId);
 
-    Optional<Room> findByIdAndHouse_Id(Long roomId, Long userId);
+    Optional<Room> findByIdAndHouse_Id(Long roomId, String userId);
+
+    List<Room> findByHouse_UserIdAndIsDeletedFalse(String userId);
 }

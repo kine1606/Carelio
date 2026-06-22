@@ -30,8 +30,7 @@ public class RoomService
     public List<RoomResponse> getAll(String userId)
     {
         log.info("Get rooms by ownerId = {}", userId);
-//        List<Room> rooms = roomRepository.findByOwnerIdAndDeletedFalse(ownerId);
-        List<Room> rooms = roomRepository.findByHouse_UserId(userId);
+        List<Room> rooms = roomRepository.findByHouse_UserIdAndIsDeletedFalse(userId);
         log.info("Found {} rooms", rooms.size());
         return roomMapper.toResponseList(rooms);
     }
@@ -80,7 +79,7 @@ public class RoomService
         {
             throw new RuntimeException("Cannot delete this room because it has equipments");
         }
-        room.setDeleted(true);
+        room.setIsDeleted(true);
         Room savedRoom = roomRepository.save(room);
         log.info("Room id {} deleted", savedRoom.getId());
         return roomMapper.toResponse(savedRoom);

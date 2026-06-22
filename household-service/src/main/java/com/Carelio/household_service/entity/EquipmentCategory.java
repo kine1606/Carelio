@@ -22,18 +22,22 @@ public class EquipmentCategory
     private Long id;
 
     private String name;
-
-//    @OneToMany(mappedBy = "equipmentCategory")
-//    private List<Equipment> equipments;
-//    @OneToMany(mappedBy = "equipmentCategory")
-//    private Set<WorkerSkill> workerSkills;
-
     @CreatedDate
 //    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
-
     @LastModifiedDate
     private LocalDateTime updatedAt;
-    // soft delete
-    private Boolean deleted = false;
+
+    @PrePersist
+    public void prePersist()
+    {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    public void preUpdate()
+    {
+        updatedAt = LocalDateTime.now();
+    }
 }
