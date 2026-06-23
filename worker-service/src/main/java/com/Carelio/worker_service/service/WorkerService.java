@@ -43,7 +43,7 @@ public class WorkerService
 
     // POST /api/workers
     @Transactional
-    public WorkerProfileResponse createWorkerProfile(Long userId, WorkerProfileRequest workerProfileRequest)
+    public WorkerProfileResponse createWorkerProfile(String userId, WorkerProfileRequest workerProfileRequest)
     {
         if (workerProfileRepository.existsByUserId(userId)) {
             throw new RuntimeException("User already has worker profile");
@@ -58,7 +58,8 @@ public class WorkerService
     // GET /api/workers/{id}
     public WorkerProfileResponse getById(Long id)
     {
-        WorkerProfile workerProfile = workerProfileRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Worker profile with id " + id + " not found"));
+        WorkerProfile workerProfile = workerProfileRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Worker profile with id " + id + " not found"));
         return workerProfileMapper.toResponse(workerProfile);
     }
 
@@ -72,17 +73,15 @@ public class WorkerService
 
     //    POST /api/workers/{workerId}/skills
     @Transactional
-    public WorkerSkillResponse addWorkerSkill(Long workerId, WorkerSkillRequest request)
+    public WorkerSkillResponse addWorkerSkill(String userId, WorkerSkillRequest request)
     {
-        WorkerProfile profile = workerProfileRepository.findById(workerId)
-                .orElseThrow(() -> new EntityNotFoundException("Worker profile with id " + workerId + " not found"));
+        WorkerProfile profile = workerProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Worker profile with id " + userId + " not found"));
         ServiceSkill skill = serviceSkillRepository.findById(request.getServiceSkillId())
                 .orElseThrow(() -> new EntityNotFoundException("Skill with id " + request.getServiceSkillId() + " not found"));
         CategoryResponse categoryResponse = householdClient.getCategoryById(request.getEquipmentCategoryId());
 
-        log.info("id: " + categoryResponse.getId());
-        log.info("name: " + categoryResponse.getName());
-
+        Long workerId = profile.getId();
         boolean exists = workerSkillRepository.existsByWorkerProfile_IdAndServiceSkill_IdAndEquipmentCategoryId
                 (
                         workerId,
@@ -90,7 +89,7 @@ public class WorkerService
                         request.getEquipmentCategoryId()
                 );
         if (exists) {
-            throw new RuntimeException("Worker skill already exists");
+            throw new RuntimeException("WorkerSkill already exists");
         }
         WorkerSkill workerSkill = WorkerSkill.builder()
                 .workerProfile(profile)
@@ -104,7 +103,7 @@ public class WorkerService
         return workerSkillMapper.toResponse(savedSkill);
     }
 
-    public List<WorkerSkillResponse> getWorkerSkill(Long workerId)
+    public List<WorkerSkillResponse> getWorkerSkills(Long workerId)
     {
         WorkerProfile profile = workerProfileRepository.findById(workerId)
                 .orElseThrow(() -> new EntityNotFoundException("Worker profile with id " + workerId + " not found"));
@@ -124,9 +123,10 @@ public class WorkerService
         return workerProfileMapper.toResponse(savedProfile);
     }
 
-    public WorkerProfileResponse acceptOrder(Long workerId, Long orderId) {
-        WorkerProfile profile = workerProfileRepository.findById(workerId)
-                .orElseThrow(() -> new EntityNotFoundException("Worker profile not found with id " + workerId));
+    public WorkerProfileResponse acceptOrder(String userId, Long orderId)
+    {
+        WorkerProfile profile = workerProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Worker profile not found with userId " + userId));
 
         if (profile.getStatus() != WorkerStatus.AVAILABLE) {
             throw new RuntimeException("Worker is not available");
@@ -135,23 +135,23 @@ public class WorkerService
         OrderResponse orderDetail;
         try {
             orderDetail = orderClient.getOrder(orderId);
-        } catch (Exception e)
-        {
+        } catch (Exception e) {
             log.error("Unavailable to take order information from orderService to validate skill ", e);
             throw new RuntimeException("System interrupted, try again");
         }
 
-        boolean hasRequiredSkill = workerSkillRepository.existsByWorkerProfile_IdAndEquipmentCategoryIdAndServiceSkill_Id(
-                workerId,
-                orderDetail.getEquipmentCategoryId(),
-                orderDetail.getServiceSkillId()
-        );
+        Long workerId = profile.getId();
+        boolean hasRequiredSkill = workerSkillRepository
+                .existsByWorkerProfile_IdAndEquipmentCategoryIdAndServiceSkill_Id(
+                        workerId,
+                        orderDetail.getEquipmentCategoryId(),
+                        orderDetail.getServiceSkillId()
+                );
 
         if (!hasRequiredSkill) {
             throw new RuntimeException("Worker does not have required skill: " + orderDetail.getServiceSkillId());
         }
-        try
-        {
+        try {
             orderClient.acceptOrder(orderId, workerId);
         } catch (feign.FeignException e) {
             log.error("Lỗi gửi từ Order Service: " + e.contentUTF8());
@@ -167,20 +167,19 @@ public class WorkerService
         return workerProfileMapper.toResponse(savedProfile);
     }
 
-    public WorkerProfileResponse startOrder(Long workerId, Long orderId)
+    public WorkerProfileResponse startOrder(String userId, Long orderId)
     {
-        WorkerProfile profile = workerProfileRepository.findById(workerId)
-                .orElseThrow(() -> new EntityNotFoundException("Worker profile not found with id" + workerId));
+        WorkerProfile profile = workerProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Worker profile not found with UserId" + userId));
 
         if (profile.getStatus() != WorkerStatus.ON_THE_WAY) {
-            throw new RuntimeException("Worker status: (" +profile.getStatus()+ ") is not ready for this order");
+            throw new RuntimeException("Worker status: (" + profile.getStatus() + ") is not ready for this order");
         }
 
-        try
-        {
-            orderClient.startOrder(orderId,workerId);
-        } catch (feign.FeignException e)
-        { // Bắt chính xác FeignException
+        Long  workerId = profile.getId();
+        try {
+            orderClient.startOrder(orderId, workerId);
+        } catch (feign.FeignException e) { // Bắt chính xác FeignException
             log.error("Lỗi gửi từ Order Service: " + e.contentUTF8());
             throw new RuntimeException("Order service trả về lỗi: " + e.contentUTF8());
         } catch (Exception e) {
@@ -188,24 +187,21 @@ public class WorkerService
             throw new RuntimeException("Unable to claim order, please try again");
         }
         WorkerProfile savedProfile = saveWorkerStatus(profile, WorkerStatus.BUSY);
-        log.info("Worker starts order", workerId, orderId);
+        log.info("Worker {} starts order {}", workerId, orderId);
         return workerProfileMapper.toResponse(savedProfile);
     }
 
-    public WorkerProfileResponse completeOrder(Long workerId, Long orderId)
+    public WorkerProfileResponse completeOrder(String userId, Long orderId)
     {
-        WorkerProfile profile = workerProfileRepository.findById(workerId)
-                .orElseThrow(() -> new EntityNotFoundException("Worker profile not found with id" + workerId));
-        if (profile.getStatus() != WorkerStatus.BUSY)
-        {
+        WorkerProfile profile = workerProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Worker profile not found with id" + userId));
+        if (profile.getStatus() != WorkerStatus.BUSY) {
             throw new RuntimeException("Worker status is not suitable to complete order");
         }
-
-        try
-        {
+        Long  workerId = profile.getId();
+        try {
             orderClient.completeOrder(orderId, workerId);
-        } catch (Exception e)
-        {
+        } catch (Exception e) {
             log.error("Can not call OrderService to claim order", e);
             throw new RuntimeException("Unable to complete order, please try again");
         }

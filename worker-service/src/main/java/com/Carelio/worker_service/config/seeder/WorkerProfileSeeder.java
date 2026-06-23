@@ -16,6 +16,8 @@ public class WorkerProfileSeeder implements CommandLineRunner {
 
     private final WorkerProfileRepository workerProfileRepository;
 
+    String keycloakUser1 = "51c6c640-fe50-4e87-b72f-a49396f1c830";
+    String keycloakUser2 = "c83a7b12-91d4-4f62-bc8a-123456789abc";
     @Override
     public void run(String... args) {
         if (workerProfileRepository.count() > 0) {
@@ -23,15 +25,14 @@ public class WorkerProfileSeeder implements CommandLineRunner {
         }
 
         List<WorkerProfile> profiles = List.of(
-                createProfile(101L, "Experienced technician specializing in repairs."),
-                createProfile(102L, "Clean and detail specialist."),
-                createProfile(103L, "Installer with focus on home appliances.")
+                createProfile(keycloakUser1, "Experienced technician specializing in repairs."),
+                createProfile(keycloakUser2, "Clean and detail specialist.")
         );
 
         workerProfileRepository.saveAll(profiles);
     }
 
-    private WorkerProfile createProfile(Long userId, String bio) {
+    private WorkerProfile createProfile(String userId, String bio) {
         WorkerProfile p = new WorkerProfile();
         p.setUserId(userId);
         p.setBio(bio);

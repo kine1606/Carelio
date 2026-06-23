@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/internal/workers")
 @RequiredArgsConstructor
+//@PreAuthorize("hasRole('WORKER') or hasRole('ADMIN')")
 public class InternalWorkerController {
 
     private final WorkerService workerService;

@@ -19,7 +19,7 @@ public class WorkerProfile
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long userId;
+    private String userId;
 
     private Integer totalJobs;
     private Double ratingAvg;

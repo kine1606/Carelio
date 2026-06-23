@@ -9,6 +9,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,66 +19,101 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/workers")
-public class WorkerController {
+// Bỏ @PreAuthorize ở đây để mở cửa cho CUSTOMER gọi các API xem hồ sơ
+public class WorkerController
+{
 
     private final WorkerService workerService;
 
-    // POST /api/workers
+    // =========================================================================
+    // SECTION 1: CÁC API DÀNH RIÊNG CHO THỢ (WORKER ACTIONS)
+    // =========================================================================
+
     @PostMapping
-    public ResponseEntity<WorkerProfileResponse> createWorker(@RequestBody @Valid WorkerProfileRequest request) {
-        WorkerProfileResponse response = workerService.createWorkerProfile(request.getUserId(), request);
+    @PreAuthorize("hasRole('WORKER')")
+    public ResponseEntity<WorkerProfileResponse> createWorker(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody @Valid WorkerProfileRequest request)
+    {
+        String userId = jwt.getSubject();
+        WorkerProfileResponse response = workerService.createWorkerProfile(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // GET /api/workers
+    @PostMapping("/skills")
+    @PreAuthorize("hasRole('WORKER')")
+    public ResponseEntity<WorkerSkillResponse> addWorkerSkill(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody @Valid WorkerSkillRequest request)
+    {
+        String userId = jwt.getSubject();
+        WorkerSkillResponse response = workerService.addWorkerSkill(userId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PatchMapping("/orders/{orderId}/accept")
+    @PreAuthorize("hasRole('WORKER')")
+    public ResponseEntity<WorkerProfileResponse> acceptOrder(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId)
+    {
+        String userId = jwt.getSubject();
+        return ResponseEntity.ok(workerService.acceptOrder(userId, orderId));
+    }
+
+    @PatchMapping("/orders/{orderId}/start")
+    @PreAuthorize("hasRole('WORKER')")
+    public ResponseEntity<WorkerProfileResponse> startOrder(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId)
+    {
+        String userId = jwt.getSubject();
+        return ResponseEntity.ok(workerService.startOrder(userId, orderId));
+    }
+
+    @PatchMapping("/orders/{orderId}/complete")
+    @PreAuthorize("hasRole('WORKER')")
+    public ResponseEntity<WorkerProfileResponse> completeOrder(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId)
+    {
+        String userId = jwt.getSubject();
+        return ResponseEntity.ok(workerService.completeOrder(userId, orderId));
+    }
+
+    // =========================================================================
+    // SECTION 2: CÁC API XEM THÔNG TIN (CUSTOMER & ADMIN & WORKER ĐỀU VÀO ĐƯỢC)
+    // =========================================================================
+
     @GetMapping
-    public ResponseEntity<List<WorkerProfileResponse>> getAllWorkers() {
+    @PreAuthorize("hasRole('ADMIN') or hasRole('CUSTOMER')")
+    public ResponseEntity<List<WorkerProfileResponse>> getAllWorkers()
+    {
         return ResponseEntity.ok(workerService.getAllWorkerProfiles());
     }
 
-    // GET /api/workers/{workerId}
     @GetMapping("/{workerId}")
-    public ResponseEntity<WorkerProfileResponse> getWorkerById(@PathVariable Long workerId) {
+    @PreAuthorize("hasRole('ADMIN') or hasRole('CUSTOMER') or hasRole('WORKER')")
+    public ResponseEntity<WorkerProfileResponse> getWorkerById(
+            @PathVariable Long workerId)
+    {
         return ResponseEntity.ok(workerService.getById(workerId));
     }
 
-    // POST /api/workers/{workerId}/skills
-    @PostMapping("/{workerId}/skills")
-    public ResponseEntity<WorkerSkillResponse> addWorkerSkill(
-            @PathVariable Long workerId,
-            @RequestBody @Valid WorkerSkillRequest request
-    ) {
-        WorkerSkillResponse response = workerService.addWorkerSkill(workerId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    // Gộp chung cái /profile cũ vào đây luôn cho gọn đường dẫn
+    @GetMapping("/{workerId}/profile")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('CUSTOMER') or hasRole('WORKER')")
+    public ResponseEntity<WorkerProfileResponse> getWorkerProfile(
+            @PathVariable Long workerId)
+    {
+        return ResponseEntity.ok(workerService.getById(workerId));
     }
 
-    // GET /api/workers/{workerId}/skills
     @GetMapping("/{workerId}/skills")
-    public ResponseEntity<List<WorkerSkillResponse>> getWorkerSkills(@PathVariable Long workerId) {
-        return ResponseEntity.ok(workerService.getWorkerSkill(workerId));
-    }
-
-    //PATCH /api/workers/{workerId}/orders/{orderId}/accept
-    @PatchMapping("/{workerId}/orders/{orderId}/accept")
-    public ResponseEntity<WorkerProfileResponse> acceptOrder(@PathVariable Long workerId,
-                                                             @PathVariable Long orderId)
+    @PreAuthorize("hasRole('ADMIN') or hasRole('CUSTOMER') or hasRole('WORKER')")
+    public ResponseEntity<List<WorkerSkillResponse>> getWorkerSkills(
+            @PathVariable Long workerId)
     {
-        return ResponseEntity.ok(workerService.acceptOrder(workerId, orderId));
-    }
-
-    //PATCH /api/workers/{workerId}/orders/{orderId}/accept
-    @PatchMapping("/{workerId}/orders/{orderId}/start")
-    public ResponseEntity<WorkerProfileResponse> startOrder(@PathVariable Long workerId,
-                                                             @PathVariable Long orderId)
-    {
-        return ResponseEntity.ok(workerService.startOrder(workerId, orderId));
-    }
-
-    //PATCH /api/workers/{workerId}/orders/{orderId}/complete
-    @PatchMapping("/{workerId}/orders/{orderId}/complete")
-    public ResponseEntity<WorkerProfileResponse> completeOrder(@PathVariable Long workerId,
-                                                               @PathVariable Long orderId)
-    {
-        return ResponseEntity.ok(workerService.completeOrder(workerId,orderId));
+        return ResponseEntity.ok(workerService.getWorkerSkills(workerId));
     }
 }
