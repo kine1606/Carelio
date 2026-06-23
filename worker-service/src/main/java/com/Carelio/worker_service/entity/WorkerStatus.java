@@ -5,5 +5,6 @@ public enum WorkerStatus
     AVAILABLE,
     ON_THE_WAY,
     BUSY,
-    OFFLINE
+    OFFLINE,
+    INACTIVE
 }

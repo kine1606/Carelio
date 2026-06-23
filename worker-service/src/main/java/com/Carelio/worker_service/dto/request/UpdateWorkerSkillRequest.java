@@ -1,7 +1,5 @@
 package com.Carelio.worker_service.dto.request;
 
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PositiveOrZero;
 import lombok.*;
 
 @Getter
@@ -9,16 +7,11 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class WorkerSkillRequest
+public class UpdateWorkerSkillRequest
 {
-//    private Long workerProfileId;
-    @NotNull
     private Long serviceSkillId;
 
-    @NotNull
     private Long equipmentCategoryId;
 
-    @PositiveOrZero
     private Integer yearExperience;
-
 }

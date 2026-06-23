@@ -4,6 +4,8 @@ import com.Carelio.worker_service.client.HouseholdClient;
 import com.Carelio.worker_service.client.OrderClient;
 import com.Carelio.worker_service.client.dto.CategoryResponse;
 import com.Carelio.worker_service.client.dto.OrderResponse;
+import com.Carelio.worker_service.dto.request.UpdateWorkerProfileRequest;
+import com.Carelio.worker_service.dto.request.UpdateWorkerSkillRequest;
 import com.Carelio.worker_service.dto.request.WorkerProfileRequest;
 import com.Carelio.worker_service.dto.request.WorkerSkillRequest;
 import com.Carelio.worker_service.dto.response.WorkerProfileResponse;
@@ -96,7 +98,7 @@ public class WorkerService
                 .serviceSkill(skill)
                 .equipmentCategoryId(categoryResponse.getId())
                 .equipmentCategoryName(categoryResponse.getName())
-                .yearExperience(request.getYearExperience()).skillLevel(request.getSkillLevel())
+//                .yearExperience(request.getYearExperience()).skillLevel(request.getSkillLevel())
                 .build();
         WorkerSkill savedSkill = workerSkillRepository.save(workerSkill);
         log.info("Worker skill {} created successfully ", savedSkill.getId());
@@ -176,7 +178,7 @@ public class WorkerService
             throw new RuntimeException("Worker status: (" + profile.getStatus() + ") is not ready for this order");
         }
 
-        Long  workerId = profile.getId();
+        Long workerId = profile.getId();
         try {
             orderClient.startOrder(orderId, workerId);
         } catch (feign.FeignException e) { // Bắt chính xác FeignException
@@ -198,7 +200,7 @@ public class WorkerService
         if (profile.getStatus() != WorkerStatus.BUSY) {
             throw new RuntimeException("Worker status is not suitable to complete order");
         }
-        Long  workerId = profile.getId();
+        Long workerId = profile.getId();
         try {
             orderClient.completeOrder(orderId, workerId);
         } catch (Exception e) {
@@ -210,6 +212,7 @@ public class WorkerService
         log.info("Worker {} have done order: {}, change status to AVAILABLE", workerId, orderId);
         return workerProfileMapper.toResponse(savedProfile);
     }
+
 
     @Transactional
     public WorkerProfile saveWorkerStatus(WorkerProfile profile, WorkerStatus status)
@@ -224,6 +227,68 @@ public class WorkerService
         profile.setStatus(WorkerStatus.AVAILABLE);
         profile.setTotalJobs(profile.getTotalJobs() + 1);
         return workerProfileRepository.save(profile);
+    }
+
+    @Transactional
+    public WorkerProfileResponse updateWorkerProfile(String userId, UpdateWorkerProfileRequest request)
+    {
+        WorkerProfile profile = workerProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Worker profile not found with userId: " + userId));
+        if (request.getBio() != null) profile.setBio(request.getBio());
+        WorkerProfile savedProfile = workerProfileRepository.save(profile);
+        return workerProfileMapper.toResponse(savedProfile);
+    }
+
+    @Transactional
+    public void deleteWorkerProfile(String userId)
+    {
+        WorkerProfile profile = workerProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Worker profile not found with userId: " + userId));
+        profile.setDeleted(true);
+        profile.setStatus(WorkerStatus.INACTIVE);
+        workerProfileRepository.save(profile);
+
+        log.info("Worker profile of user {} has been soft-deleted successfully", userId);
+    }
+
+    @Transactional
+    public WorkerSkillResponse updateWorkerSkill(String userId, Long skillId, UpdateWorkerSkillRequest request)
+    {
+        WorkerSkill workerSkill = workerSkillRepository.findById(skillId)
+                .orElseThrow(() -> new EntityNotFoundException("Worker skill not found with id: " + skillId));
+
+        if (!workerSkill.getWorkerProfile().getUserId().equals(userId)) {
+            log.warn("Security alert: user {} try to adjust {} other's worker skill!", userId, skillId);
+            throw new RuntimeException("You don't have permission to adjust this worker skill");
+        }
+
+        ServiceSkill skill = serviceSkillRepository.findById(request.getServiceSkillId())
+                .orElseThrow(() -> new EntityNotFoundException("Skill with id " + request.getServiceSkillId() + " not found"));
+        CategoryResponse categoryResponse = householdClient.getCategoryById(request.getEquipmentCategoryId());
+        if (request.getYearExperience() != null && request.getYearExperience() >= 0)
+        {
+            workerSkill.setYearExperience(request.getYearExperience());
+        }
+        workerSkill.setServiceSkill(skill);
+        workerSkill.setEquipmentCategoryId(categoryResponse.getId());
+        workerSkill.setEquipmentCategoryName(categoryResponse.getName());
+        WorkerSkill savedSkill = workerSkillRepository.save(workerSkill);
+        return workerSkillMapper.toResponse(savedSkill);
+    }
+
+    @Transactional
+    public void deleteWorkerSkill(String userId, Long skillId)
+    {
+        WorkerSkill skill = workerSkillRepository.findById(skillId)
+                .orElseThrow(() -> new EntityNotFoundException("Worker skill not found with id: " + skillId));
+
+        if (!skill.getWorkerProfile().getUserId().equals(userId)) {
+            log.warn("Security alert: user {} try to delete {} other's worker skill!", userId, skillId);
+            throw new RuntimeException("You don't have permission to adjust this worker skill");
+        }
+
+        workerSkillRepository.delete(skill);
+        log.info("Skill {} of worker {} has been deleted successfully", skillId, userId);
     }
 }
 

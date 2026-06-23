@@ -1,5 +1,7 @@
 package com.Carelio.worker_service.controller;
 
+import com.Carelio.worker_service.dto.request.UpdateWorkerProfileRequest;
+import com.Carelio.worker_service.dto.request.UpdateWorkerSkillRequest;
 import com.Carelio.worker_service.dto.request.WorkerProfileRequest;
 import com.Carelio.worker_service.dto.request.WorkerSkillRequest;
 import com.Carelio.worker_service.dto.response.WorkerProfileResponse;
@@ -81,6 +83,43 @@ public class WorkerController
         return ResponseEntity.ok(workerService.completeOrder(userId, orderId));
     }
 
+    //========================= Patch and Delete ==================================
+    @PatchMapping("/profile")
+    @PreAuthorize("hasRole('WORKER')")
+    public ResponseEntity<WorkerProfileResponse> updateWorkerProfile(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody @Valid UpdateWorkerProfileRequest request) {
+        String userId = jwt.getSubject();
+        return ResponseEntity.ok(workerService.updateWorkerProfile(userId, request));
+    }
+
+    @DeleteMapping
+    @PreAuthorize("hasRole('WORKER')")
+    public ResponseEntity<Void> deleteWorkerProfile(@AuthenticationPrincipal Jwt jwt) {
+        String userId = jwt.getSubject();
+        workerService.deleteWorkerProfile(userId);
+        return ResponseEntity.noContent().build(); // Trả về 204 No Content chuẩn REST
+    }
+
+    @PatchMapping("/skills/{skillId}")
+    @PreAuthorize("hasRole('WORKER')")
+    public ResponseEntity<WorkerSkillResponse> updateWorkerSkill(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long skillId,
+            @RequestBody @Valid UpdateWorkerSkillRequest request) {
+        String userId = jwt.getSubject();
+        return ResponseEntity.ok(workerService.updateWorkerSkill(userId, skillId, request));
+    }
+
+    @DeleteMapping("/skills/{skillId}")
+    @PreAuthorize("hasRole('WORKER')")
+    public ResponseEntity<Void> deleteWorkerSkill(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long skillId) {
+        String userId = jwt.getSubject();
+        workerService.deleteWorkerSkill(userId, skillId);
+        return ResponseEntity.noContent().build(); // Trả về 204 No Content
+    }
     // =========================================================================
     // SECTION 2: CÁC API XEM THÔNG TIN (CUSTOMER & ADMIN & WORKER ĐỀU VÀO ĐƯỢC)
     // =========================================================================
@@ -115,4 +154,6 @@ public class WorkerController
     {
         return ResponseEntity.ok(workerService.getWorkerSkills(workerId));
     }
+
+
 }

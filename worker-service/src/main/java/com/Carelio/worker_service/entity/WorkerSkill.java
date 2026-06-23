@@ -50,6 +50,15 @@ public class WorkerSkill
     @CreatedDate
     private LocalDateTime createdAt;
 
+    @PostUpdate
+    public void postUpdate()
+    {
+        if(yearExperience <= 1)
+            skillLevel = SkillLevel.BEGINNER;
+        else if(yearExperience <= 3)
+            skillLevel = SkillLevel.INTERMEDIATE;
+        else skillLevel = SkillLevel.ADVANCED;
+    }
     @PrePersist
     public void prePersist()
     {
