@@ -65,6 +65,13 @@ public class WorkerService
         return workerProfileMapper.toResponse(workerProfile);
     }
 
+    public WorkerProfileResponse getByKeyCloakUserId(String userId)
+    {
+        WorkerProfile workerProfile = workerProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Worker profile with userId " + userId + " not found"));
+        return workerProfileMapper.toResponse(workerProfile);
+    }
+
     //GET /api/workers
     public List<WorkerProfileResponse> getAllWorkerProfiles()
     {
@@ -98,7 +105,7 @@ public class WorkerService
                 .serviceSkill(skill)
                 .equipmentCategoryId(categoryResponse.getId())
                 .equipmentCategoryName(categoryResponse.getName())
-//                .yearExperience(request.getYearExperience()).skillLevel(request.getSkillLevel())
+                .yearExperience(request.getYearExperience())
                 .build();
         WorkerSkill savedSkill = workerSkillRepository.save(workerSkill);
         log.info("Worker skill {} created successfully ", savedSkill.getId());
@@ -235,6 +242,8 @@ public class WorkerService
         WorkerProfile profile = workerProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Worker profile not found with userId: " + userId));
         if (request.getBio() != null) profile.setBio(request.getBio());
+
+        profile.setStatus(request.getStatus());
         WorkerProfile savedProfile = workerProfileRepository.save(profile);
         return workerProfileMapper.toResponse(savedProfile);
     }
@@ -244,7 +253,7 @@ public class WorkerService
     {
         WorkerProfile profile = workerProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Worker profile not found with userId: " + userId));
-        profile.setDeleted(true);
+//        profile.setDeleted(true);
         profile.setStatus(WorkerStatus.INACTIVE);
         workerProfileRepository.save(profile);
 
@@ -265,8 +274,7 @@ public class WorkerService
         ServiceSkill skill = serviceSkillRepository.findById(request.getServiceSkillId())
                 .orElseThrow(() -> new EntityNotFoundException("Skill with id " + request.getServiceSkillId() + " not found"));
         CategoryResponse categoryResponse = householdClient.getCategoryById(request.getEquipmentCategoryId());
-        if (request.getYearExperience() != null && request.getYearExperience() >= 0)
-        {
+        if (request.getYearExperience() != null && request.getYearExperience() >= 0) {
             workerSkill.setYearExperience(request.getYearExperience());
         }
         workerSkill.setServiceSkill(skill);
@@ -284,7 +292,7 @@ public class WorkerService
 
         if (!skill.getWorkerProfile().getUserId().equals(userId)) {
             log.warn("Security alert: user {} try to delete {} other's worker skill!", userId, skillId);
-            throw new RuntimeException("You don't have permission to adjust this worker skill");
+            throw new RuntimeException("You don't have permission to delete this worker skill");
         }
 
         workerSkillRepository.delete(skill);

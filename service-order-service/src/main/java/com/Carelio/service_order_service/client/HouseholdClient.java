@@ -28,7 +28,8 @@ public interface HouseholdClient {
     EquipmentCategoryResponse getEquipmentCategoryById(@PathVariable("ecid") Long ecid);
 
     @GetMapping("/api/equipments/{equipmentId}/validate")
-    EquipmentValidationResponse validate(@PathVariable("equipmentId") Long equipmentId,
-                                         @RequestParam Long roomId,
-                                         @RequestParam Long houseId);
+    EquipmentValidationResponse validate(
+            @PathVariable("equipmentId") Long equipmentId,
+            @RequestParam Long roomId,
+            @RequestParam Long houseId);
 }

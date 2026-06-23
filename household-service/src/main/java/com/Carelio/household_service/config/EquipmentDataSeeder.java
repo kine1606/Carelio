@@ -61,7 +61,7 @@ public class EquipmentDataSeeder implements CommandLineRunner {
                         .conditionStatus(EquipmentConditionStatus.NORMAL)
                         .room(livingRoom)
                         .equipmentCategory(airConditionerCategory)
-                        .deleted(false)
+                        .isDeleted(false)
                         .build(),
 
                 Equipment.builder()
@@ -73,7 +73,7 @@ public class EquipmentDataSeeder implements CommandLineRunner {
                         .conditionStatus(EquipmentConditionStatus.NORMAL)
                         .room(livingRoom)
                         .equipmentCategory(televisionCategory)
-                        .deleted(false)
+                        .isDeleted(false)
                         .build(),
 
                 Equipment.builder()
@@ -85,7 +85,7 @@ public class EquipmentDataSeeder implements CommandLineRunner {
                         .conditionStatus(EquipmentConditionStatus.NEEDS_CLEANING)
                         .room(kitchen)
                         .equipmentCategory(refrigeratorCategory)
-                        .deleted(false)
+                        .isDeleted(false)
                         .build(),
 
                 Equipment.builder()
@@ -97,7 +97,7 @@ public class EquipmentDataSeeder implements CommandLineRunner {
                         .conditionStatus(EquipmentConditionStatus.NORMAL)
                         .room(kitchen)
                         .equipmentCategory(washingMachineCategory)
-                        .deleted(false)
+                        .isDeleted(false)
                         .build(),
 
                 Equipment.builder()
@@ -109,7 +109,7 @@ public class EquipmentDataSeeder implements CommandLineRunner {
                         .conditionStatus(EquipmentConditionStatus.NEEDS_REPAIR)
                         .room(bedroom)
                         .equipmentCategory(airConditionerCategory)
-                        .deleted(false)
+                        .isDeleted(false)
                         .build(),
 
                 Equipment.builder()
@@ -121,7 +121,7 @@ public class EquipmentDataSeeder implements CommandLineRunner {
                         .conditionStatus(EquipmentConditionStatus.NORMAL)
                         .room(livingRoom)
                         .equipmentCategory(televisionCategory)
-                        .deleted(false)
+                        .isDeleted(false)
                         .build()
         );
 

@@ -1,0 +1,61 @@
+{
+  "realm": "carelio-realm",
+  "enabled": true,
+  "roles": {
+    "realm": [
+      { "name": "CUSTOMER", "description": "Khách hàng đặt lịch" },
+      { "name": "WORKER", "description": "Thợ sửa chữa" },
+      { "name": "ADMIN", "description": "Quản trị hệ thống" }
+    ]
+  },
+  "users": [
+    {
+      "id": "c83a7b12-91d4-4f62-bc8a-123456789abc",
+      "username": "thonguyen",
+      "enabled": true,
+      "email": "thonguyen@example.com",
+      "firstName": "Tho",
+      "lastName": "Nguyen",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "123456",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [ "CUSTOMER" ]
+    },
+    {
+      "id": "fa4b8c23-02e5-5a73-cd9b-23456789def0",
+      "username": "worker_test",
+      "enabled": true,
+      "email": "worker@example.com",
+      "firstName": "Thợ",
+      "lastName": "Sửa Chữa",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "123456",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [ "WORKER" ]
+    },
+    {
+      "id": "b12c9d34-1111-2222-3333-abcdefabcdef",
+      "username": "admin_user",
+      "enabled": true,
+      "email": "admin@example.com",
+      "firstName": "Admin",
+      "lastName": "System",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "123456",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [ "ADMIN", "CUSTOMER" ]
+    }
+  ]
+}

@@ -2,7 +2,6 @@ package com.Carelio.worker_service.entity;
 
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Positive;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 
@@ -41,7 +40,7 @@ public class WorkerSkill
     // different service so can't use relationship @ManyToOne so we just take id of it.
     private Long equipmentCategoryId;
     private String equipmentCategoryName;
-    @Positive
+
     private Integer yearExperience;
 
     @Enumerated(EnumType.STRING)
@@ -62,13 +61,15 @@ public class WorkerSkill
     @PrePersist
     public void prePersist()
     {
-        if (skillLevel == null) ;
         if(yearExperience > 2)
             skillLevel = SkillLevel.ADVANCED;
         else if (yearExperience <= 2 && yearExperience >= 1)
             skillLevel = SkillLevel.INTERMEDIATE;
         else
+        {
             skillLevel = SkillLevel.BEGINNER;
+            yearExperience = 1;
+        }
         createdAt = LocalDateTime.now();
     }
 }

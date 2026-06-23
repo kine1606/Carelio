@@ -27,8 +27,8 @@ public class WorkerProfile
     private WorkerStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
-    private boolean isDeleted = false;
+//
+//    private boolean isDeleted = false;
 
     @PrePersist
     public void prePersist() {

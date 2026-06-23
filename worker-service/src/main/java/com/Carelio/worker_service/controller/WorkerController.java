@@ -142,9 +142,9 @@ public class WorkerController
     @GetMapping("/{workerId}/profile")
     @PreAuthorize("hasRole('ADMIN') or hasRole('CUSTOMER') or hasRole('WORKER')")
     public ResponseEntity<WorkerProfileResponse> getWorkerProfile(
-            @PathVariable Long workerId)
+            @PathVariable String userId)
     {
-        return ResponseEntity.ok(workerService.getById(workerId));
+        return ResponseEntity.ok(workerService.getByKeyCloakUserId(userId));
     }
 
     @GetMapping("/{workerId}/skills")

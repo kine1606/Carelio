@@ -109,6 +109,7 @@ public class EquipmentService
         log.info("Equipment {} is deleted successfully", id);
         return equipmentMapper.toResponse(e);
     }
+
     public EquipmentValidationResponse validateEquipment(String userId,
                                                          Long equipmentId,
                                                          Long roomId,
@@ -116,9 +117,11 @@ public class EquipmentService
     {
         House house = houseRepository.findByIdAndUserId(houseId, userId)
                 .orElseThrow(() -> new EntityNotFoundException("House " + houseId + " not found or not owned by user"));
-        Room room = roomRepository.findByIdAndHouse_Id(roomId, userId)
+
+        Room room = roomRepository.findByIdAndHouse_Id(roomId, houseId)
                 .orElseThrow(() -> new EntityNotFoundException("Room " + roomId + " not found or not belonged to house " + houseId));
-        Equipment equipment = equipmentRepository.findByIdAndRoom_Id(equipmentId, userId)
+
+        Equipment equipment = equipmentRepository.findByIdAndRoom_Id(equipmentId, roomId)
                 .orElseThrow(() -> new EntityNotFoundException("Equipment " + equipmentId + " not found or not belonged to room " + roomId));
 
         return EquipmentValidationResponse

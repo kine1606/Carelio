@@ -14,7 +14,7 @@ public class OrderReviewResponse
 {
     private Long id;
     private Long orderId;
-    private Long userId;
+    private String userId;
     private Long workerId;
     private Integer rating;
     private String comment;

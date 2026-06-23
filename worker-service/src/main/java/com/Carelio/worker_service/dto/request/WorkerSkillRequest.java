@@ -1,7 +1,6 @@
 package com.Carelio.worker_service.dto.request;
 
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PositiveOrZero;
 import lombok.*;
 
 @Getter
@@ -17,8 +16,5 @@ public class WorkerSkillRequest
 
     @NotNull
     private Long equipmentCategoryId;
-
-    @PositiveOrZero
     private Integer yearExperience;
-
 }

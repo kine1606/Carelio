@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 public class OrderResponse
 {
     private Long id;
-    private Long userId;
+    private String userId;
     private Long workerId;
 
     // snapshot

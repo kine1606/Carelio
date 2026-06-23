@@ -66,7 +66,7 @@ public class OrderService
     // POST /api/service-orders
     @Transactional
     public OrderResponse createOrder(String userId, OrderRequest request)
-    { // <-- Đã uncomment và fix cú pháp
+    {
         var evResponse = householdClient.validate(
                 request.getEquipmentId(),
                 request.getRoomId(),

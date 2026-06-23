@@ -1,5 +1,6 @@
 package com.Carelio.service_order_service.controller;
 
+import com.Carelio.service_order_service.dto.response.OrderResponse;
 import com.Carelio.service_order_service.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,13 +16,13 @@ public class InternalOrderController
 
     private final OrderService orderService;
 
-//    @GetMapping("/{orderId}")
-//    public ResponseEntity<OrderResponse> getOrderForInternalUse(@PathVariable Long orderId)
-//    {
-//        return ResponseEntity.ok(orderService.getById(orderId));
-//    }
+    @GetMapping("/{orderId}")
+    public ResponseEntity<OrderResponse> getOrderForInternalUse(@PathVariable Long orderId)
+    {
+        return ResponseEntity.ok(orderService.getByIdInternal(orderId));
+    }
 
-    @PatchMapping("/api/internal/service-orders/{orderId}/accept")
+    @PatchMapping("/{orderId}/accept")
     public ResponseEntity<Void> acceptOrder(
             @PathVariable Long orderId,
             @RequestParam Long workerId)
@@ -31,23 +32,23 @@ public class InternalOrderController
         return ResponseEntity.ok().build();
     }
 
-    @PatchMapping("/api/internal/service-orders/{orderId}/start")
+    @PatchMapping("/{orderId}/start")
     public ResponseEntity<Void> startOrder(
             @PathVariable Long orderId,
             @RequestParam Long workerId)
     {
         log.info("Worker {} đang gọi Feign để BẮT ĐẦU đơn hàng {}", workerId, orderId);
-        orderService.processStartOrder(workerId, orderId);
+        orderService.processStartOrder(orderId, workerId);
         return ResponseEntity.ok().build();
     }
 
-    @PatchMapping("/api/internal/service-orders/{orderId}/complete")
+    @PatchMapping("/{orderId}/complete")
     public ResponseEntity<Void> completeOrder(
             @PathVariable Long orderId,
             @RequestParam Long workerId)
     {
         log.info("Worker {} đang gọi Feign để HOÀN THÀNH đơn hàng {}", workerId, orderId);
-        orderService.processCompleteOrder(workerId, orderId);
+        orderService.processCompleteOrder(orderId, workerId);
         return ResponseEntity.ok().build();
     }
 }

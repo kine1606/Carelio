@@ -1,6 +1,7 @@
 package com.Carelio.service_order_service.controller;
 
 import com.Carelio.service_order_service.dto.request.OrderAttachmentRequest;
+import com.Carelio.service_order_service.dto.request.UpdateAttachmentRequest;
 import com.Carelio.service_order_service.dto.response.OrderAttachmentResponse;
 import com.Carelio.service_order_service.service.OrderAttachmentService;
 import jakarta.validation.Valid;
@@ -41,6 +42,17 @@ public class OrderAttachmentController {
             @PathVariable Long orderId) {
         String userId = jwt.getSubject();
         return ResponseEntity.ok(orderAttachmentService.getAttachments(userId, orderId));
+    }
+
+    @PatchMapping("/{orderId}/attachments/{attachmentId}")
+    @PreAuthorize("hasRole('CUSTOMER') or hasRole('WORKER')")
+    public ResponseEntity<OrderAttachmentResponse> updateAttachment(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId,
+            @PathVariable Long attachmentId,
+            @RequestBody UpdateAttachmentRequest request) {
+        String userId = jwt.getSubject();
+        return ResponseEntity.ok(orderAttachmentService.updateAttachment(userId, orderId, attachmentId, request));
     }
 
     // DELETE /api/service-orders/{orderId}/attachments/{attachmentId}

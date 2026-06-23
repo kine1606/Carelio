@@ -3,6 +3,7 @@ package com.Carelio.service_order_service.service;
 import com.Carelio.service_order_service.client.WorkerClient;
 import com.Carelio.service_order_service.client.dto.WorkerProfileResponse;
 import com.Carelio.service_order_service.dto.request.OrderAttachmentRequest;
+import com.Carelio.service_order_service.dto.request.UpdateAttachmentRequest;
 import com.Carelio.service_order_service.dto.response.OrderAttachmentResponse;
 import com.Carelio.service_order_service.entity.Order;
 import com.Carelio.service_order_service.entity.OrderAttachment;
@@ -83,6 +84,27 @@ public class OrderAttachmentService {
         List<OrderAttachment> attachments = orderAttachmentRepository.findAllByOrderId(orderId);
         log.info("Found {} attachments for orderId: {}", attachments.size(), orderId);
         return orderAttachmentMapper.toResponseList(attachments);
+    }
+
+    //PATCH /api/service-orders/{orderId}/attachments/{attachmentId}
+
+    @Transactional
+    public OrderAttachmentResponse updateAttachment(String userId, Long orderId, Long attachmentId, UpdateAttachmentRequest request)
+    {
+        Order order = getOrderEntity(orderId);
+        validateOrderAccess(order, userId);
+        OrderAttachment attachment = orderAttachmentRepository.findByIdAndOrderId(attachmentId, orderId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Attachment not found with id: " + attachmentId + " for orderId: " + orderId));
+        if(request.getFileType() != null)
+            attachment.setFileType(request.getFileType());
+        if(request.getFileUrl() != null)
+            attachment.setFileUrl(request.getFileUrl());
+        if(request.getUploadedBy() != null)
+            attachment.setUploadedBy(userId);
+        OrderAttachment saved =  orderAttachmentRepository.save(attachment);
+        log.info("Attachment {} updated successfully by user {}", attachmentId, userId);
+        return  orderAttachmentMapper.toResponse(saved);
     }
 
     // DELETE /api/service-orders/{orderId}/attachments/{attachmentId}
