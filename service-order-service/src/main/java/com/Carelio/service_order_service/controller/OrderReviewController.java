@@ -3,8 +3,13 @@ package com.Carelio.service_order_service.controller;
 import com.Carelio.service_order_service.dto.request.OrderReviewRequest;
 import com.Carelio.service_order_service.dto.response.OrderReviewResponse;
 import com.Carelio.service_order_service.service.OrderReviewService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -14,22 +19,30 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OrderReviewController
 {
+
     private final OrderReviewService orderReviewService;
 
+    // POST /api/service-orders/{orderId}/reviews -> Khách hàng viết đánh giá
     @PostMapping("/{orderId}/reviews")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<OrderReviewResponse> createReview(
-            @RequestHeader("X-USER-ID") Long userId,
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long orderId,
-            @RequestBody OrderReviewRequest request)
+            @RequestBody @Valid OrderReviewRequest request)
     {
-        return ResponseEntity.ok(orderReviewService.createReview(userId, orderId, request));
+        String userId = jwt.getSubject();
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(orderReviewService.createReview(userId, orderId, request));
     }
 
+    // GET /api/service-orders/{orderId}/reviews
     @GetMapping("/{orderId}/reviews")
+    @PreAuthorize("hasRole('CUSTOMER') or hasRole('WORKER') or hasRole('ADMIN')")
     public ResponseEntity<List<OrderReviewResponse>> getReviews(
-            @RequestHeader("X-USER-ID") Long userId,
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long orderId)
     {
+        String userId = jwt.getSubject();
         return ResponseEntity.ok(orderReviewService.getReviews(userId, orderId));
     }
 }

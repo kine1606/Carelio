@@ -22,10 +22,6 @@ public class ServiceOrderController {
 
     private final OrderService orderService;
 
-    // =========================================================================
-    // SECTION 1: CÁC API CÔNG KHAI DÀNH CHO KHÁCH HÀNG (CUSTOMER LAYER)
-    // =========================================================================
-
     @GetMapping("/api/service-orders")
     @PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
     public ResponseEntity<List<OrderResponse>> getAllOrders(@AuthenticationPrincipal Jwt jwt) {
