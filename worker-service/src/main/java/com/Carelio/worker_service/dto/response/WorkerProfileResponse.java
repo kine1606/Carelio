@@ -20,7 +20,7 @@ import lombok.*;
 public class WorkerProfileResponse
 {
     private Long id;
-    private Long userId;
+    private String userId;
     private Integer totalJobs;
     private Double ratingAvg;
     private String bio;

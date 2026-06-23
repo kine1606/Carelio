@@ -100,7 +100,6 @@ public class WorkerController
         return ResponseEntity.ok(workerService.getById(workerId));
     }
 
-    // Gộp chung cái /profile cũ vào đây luôn cho gọn đường dẫn
     @GetMapping("/{workerId}/profile")
     @PreAuthorize("hasRole('ADMIN') or hasRole('CUSTOMER') or hasRole('WORKER')")
     public ResponseEntity<WorkerProfileResponse> getWorkerProfile(
