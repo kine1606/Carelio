@@ -1,4 +1,4 @@
-package com.Carelio.service_order_service.entity;
+package com.Carelio.payment_service.client.dto;
 
 
 public enum ServiceOrderStatus
@@ -8,6 +8,7 @@ public enum ServiceOrderStatus
     IN_PROGRESS,
     COMPLETED,
     PAID,
+
     CANCELLED,
     EXPIRED
 }

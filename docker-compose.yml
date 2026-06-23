@@ -62,6 +62,18 @@ services:
     volumes:
       - user_postgres_data:/var/lib/postgresql/data
 
+  payment-postgres:
+    image: postgres:16
+    container_name: payment-postgres
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: payment_service
+      POSTGRES_PASSWORD: payment_password
+    ports:
+      - "5439:5432"
+    volumes:
+      - payment_postgres_data:/var/lib/postgresql/data
+
   # --- IDENTITY PROVIDER (KEYCLOAK SERVER) ---
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
@@ -169,3 +181,4 @@ volumes:
   order_postgres_data:
   keycloak_postgres_data:
   user_postgres_data:
+  payment_postgres_data:
