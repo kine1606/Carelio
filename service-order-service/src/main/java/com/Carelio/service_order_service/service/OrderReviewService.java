@@ -1,6 +1,7 @@
 package com.Carelio.service_order_service.service;
 
 import com.Carelio.service_order_service.client.WorkerClient;
+import com.Carelio.service_order_service.client.dto.WorkerProfileResponse;
 import com.Carelio.service_order_service.dto.request.OrderReviewRequest;
 import com.Carelio.service_order_service.dto.response.OrderReviewResponse;
 import com.Carelio.service_order_service.entity.Order;
@@ -19,52 +20,82 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional(readOnly = true) // Tối ưu hóa các thao tác đọc (GET) mặc định là Read-Only
 @Slf4j
-public class OrderReviewService
-{
+public class OrderReviewService {
+
     private final OrderReviewMapper orderReviewMapper;
     private final OrderRepository orderRepository;
     private final OrderReviewRepository orderReviewRepository;
     private final WorkerClient workerClient;
 
-    private Order getOrderEntity(Long userId, Long orderId)
-    {
-        Order order = orderRepository.findByIdAndUserId(orderId, userId)
+    private Order getOrderEntity(Long orderId) {
+        return orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Order not found with id: " + orderId));
-        return order;
     }
-    //POST /api/orders/{orderId}/reviews
-    public OrderReviewResponse createReview(Long userId, Long orderId, OrderReviewRequest request)
-    {
-        Order order = getOrderEntity(userId, orderId);
+
+    private void validateOrderAccess(Order order, String userId) {
+        if (order.getUserId().equals(userId)) {
+            return;
+        }
+        if (order.getWorkerId() != null) {
+            try {
+                WorkerProfileResponse workerProfile = workerClient.getWorkerByKeycloakId(userId);
+                if (workerProfile.getId().equals(order.getWorkerId())) {
+                    return; // Hợp lệ!
+                }
+            } catch (Exception e) {
+                log.error("Không thể xác thực vai trò Thợ từ Worker Service", e);
+            }
+        }
+
+        throw new RuntimeException("Bạn không có quyền truy cập thông tin của đơn hàng này!");
+    }
+
+    // POST /api/service-orders/{orderId}/reviews
+    @Transactional
+    public OrderReviewResponse createReview(String userId, Long orderId, OrderReviewRequest request) {
+        Order order = getOrderEntity(orderId);
+
+        if (!order.getUserId().equals(userId)) {
+            throw new RuntimeException("Bạn không có quyền đánh giá đơn hàng của người khác!");
+        }
+
         if (order.getStatus() != ServiceOrderStatus.COMPLETED) {
-            throw new IllegalStateException("Order must be COMPLETED before submitting a review.");
+            throw new IllegalStateException("Đơn hàng phải ở trạng thái COMPLETED mới có thể đánh giá.");
         }
+
         if (orderReviewRepository.findByOrderIdAndUserId(orderId, userId).isPresent()) {
-            throw new IllegalStateException("You have already reviewed this order.");
+            throw new IllegalStateException("Bạn đã thực hiện đánh giá cho đơn hàng này rồi.");
         }
+
         OrderReview review = OrderReview.builder()
                 .orderId(orderId)
-                .userId(userId)
+                .userId(userId) // Lưu chính xác mã UUID của Khách
                 .workerId(order.getWorkerId())
                 .rating(request.getRating())
                 .comment(request.getComment())
                 .build();
+
         OrderReview saved = orderReviewRepository.save(review);
 
-        // update RatingAvg of worker after done reviewing
-        workerClient.updateRating(review.getWorkerId(), review.getRating());
-        log.info("Review created successfully for orderId: {}", orderId);
+        try {
+            workerClient.updateRating(review.getWorkerId(), review.getRating());
+            log.info("Đã cập nhật điểm trung bình ngầm sang Worker Service cho thợ ID: {}", review.getWorkerId());
+        } catch (Exception e) {
+            log.error("Gặp sự cố kết nối, không thể tự động cập nhật Rating sang Worker Service", e);
+        }
+
+        log.info("Khách hàng {} đã tạo review thành công cho đơn hàng: {}", userId, orderId);
         return orderReviewMapper.toResponse(saved);
     }
 
-    //GET /api/orders/{orderId}/reviews
-    public List<OrderReviewResponse> getReviews(Long userId, Long orderId)
-    {
-        getOrderEntity(userId, orderId);
+    // GET /api/service-orders/{orderId}/reviews
+    public List<OrderReviewResponse> getReviews(String userId, Long orderId) {
+        Order order = getOrderEntity(orderId);
+        validateOrderAccess(order, userId);
         List<OrderReview> reviews = orderReviewRepository.findAllByOrderId(orderId);
-        log.info("Found {} reviews for orderId: {}", reviews.size(), orderId);
+        log.info("Tìm thấy {} đánh giá cho đơn hàng số: {}", reviews.size(), orderId);
         return orderReviewMapper.toResponseList(reviews);
     }
 }

@@ -22,7 +22,7 @@ public class Order
     private Long id;
 
 //    @Column(nullable = false)
-    private Long userId;
+    private String userId;
     private Long workerId;        // worker (can be null at first time)
 
 

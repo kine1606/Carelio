@@ -26,7 +26,7 @@ public class OrderAttachment
     //    @Column(nullable = false)
     private String fileType;
     //    @Column(nullable = false)
-    private UploadedByType uploadedBy;
+    private String uploadedBy;
 
     @CreatedDate
     private LocalDateTime createdAt;

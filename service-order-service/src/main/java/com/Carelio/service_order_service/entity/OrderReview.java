@@ -26,7 +26,7 @@ public class OrderReview
 //    @Column(nullable = false)
     private Long orderId;
 //    @Column(nullable = false)
-    private Long userId;
+    private String userId;
 //    @Column(nullable = false)
     private Long workerId;
 
