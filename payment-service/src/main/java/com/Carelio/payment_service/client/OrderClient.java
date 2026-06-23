@@ -20,9 +20,10 @@ public interface OrderClient {
 
     // Endpoint nội bộ báo cho Order Service biết là đơn này đã trả tiền xong xuôi
     @PatchMapping("/api/internal/service-orders/{orderId}/payment-success")
-    void markOrderSuccess(@PathVariable("orderId") Long orderId);
+    OrderResponse markOrderSuccess(@PathVariable("orderId") Long orderId);
 
     // Endpoint nội bộ báo hủy/thất bại do lỗi thanh toán
     @PatchMapping("/api/internal/service-orders/{orderId}/payment-failed")
-    void markOrderFailed(@PathVariable("orderId") Long orderId);
+    OrderResponse markOrderFailed(@PathVariable("orderId") Long orderId);
+
 }

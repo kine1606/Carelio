@@ -9,6 +9,7 @@ import com.Carelio.payment_service.dto.PaymentResponse;
 import com.Carelio.payment_service.dto.momo.HmacUtil;
 import com.Carelio.payment_service.dto.momo.MomoCreateRequest;
 import com.Carelio.payment_service.dto.momo.MomoCreateResponse;
+import com.Carelio.payment_service.dto.momo.MomoIpnRequest;
 import com.Carelio.payment_service.entity.Payment;
 import com.Carelio.payment_service.factory.PaymentFactory;
 import com.Carelio.payment_service.factory.PaymentProcessor;
@@ -181,5 +182,61 @@ public class PaymentService {
         response.setCreatedAt(payment.getCreatedAt());
         response.setUpdatedAt(payment.getUpdatedAt());
         return response;
+    }
+
+
+    // Hàm xử lý Webhook ngầm từ MoMo gửi về
+    @Transactional
+    public void processMomoIpn(MomoIpnRequest ipnRequest) {
+        log.info("Nhận được thông báo IPN từ MoMo với resultCode: {}", ipnRequest.getResultCode());
+
+        // 1. Tách chuỗi orderId của MoMo (Dạng: ORDER-12-PAYMENT-34) để lấy đúng ID bảng Payment
+        // Mẹo tách chuỗi nhanh bằng regex
+        String[] parts = ipnRequest.getOrderId().split("-PAYMENT-");
+        Long paymentId = Long.parseLong(parts[1]);
+        Long orderId = Long.parseLong(parts[0].split("ORDER-")[1]);
+
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new RuntimeException("Unrecognized payment record ID: " + paymentId));
+
+        // Nếu bản ghi thanh toán này đã được xử lý từ trước rồi thì bỏ qua (Tránh xử lý trùng)
+        if (!"PENDING".equals(payment.getStatus())) {
+            log.info("Giao dịch này đã được cập nhật từ trước. Bỏ qua.");
+            return;
+        }
+
+        // 2. Kiểm tra xem MoMo báo thành công hay thất bại
+        if (ipnRequest.getResultCode() == 0) {
+            // Thanh toán THÀNH CÔNG
+            payment.setStatus("SUCCESS");
+            payment.setPaidAt(LocalDateTime.now());
+            paymentRepository.save(payment);
+
+            // 🚀 BẮN ĐẠN SANG ORDER-SERVICE: Gọi Feign thông báo đơn hàng ĐÃ TRẢ TIỀN
+            try {
+                orderClient.markOrderSuccess(orderId);
+                log.info("Đã thông báo gạt trạng thái PAID thành công cho Đơn hàng số: {}", orderId);
+            } catch (Exception e) {
+                log.error("Không thể kết nối sang Order Service để đổi trạng thái đơn hàng!", e);
+            }
+        } else {
+            // Thanh toán THẤT BẠI
+            payment.setStatus("FAILED");
+            paymentRepository.save(payment);
+
+            try {
+                orderClient.markOrderFailed(orderId);
+            } catch (Exception e) {
+                log.error("Không thể kết nối sang Order Service để báo lỗi đơn hàng!", e);
+            }
+        }
+    }
+
+    // Hàm phục vụ Frontend check trạng thái hiển thị UI
+    public String getPaymentStatus(String userId, Long orderId) {
+        // Tìm giao dịch mới nhất của đơn hàng này
+        return paymentRepository.findTopByOrderIdOrderByIdDesc(orderId)
+                .map(Payment::getStatus)
+                .orElse("NOT_FOUND");
     }
 }

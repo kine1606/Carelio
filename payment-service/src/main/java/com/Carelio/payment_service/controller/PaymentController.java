@@ -2,6 +2,7 @@ package com.Carelio.payment_service.controller;
 
 import com.Carelio.payment_service.dto.PaymentRequest;
 import com.Carelio.payment_service.dto.PaymentResponse;
+import com.Carelio.payment_service.dto.momo.MomoIpnRequest;
 import com.Carelio.payment_service.service.PaymentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,5 +27,22 @@ public class PaymentController {
 
         String userId = jwt.getSubject();
         return ResponseEntity.ok(paymentService.createPayment(userId, request));
+    }
+
+    @PostMapping("/momo-ipn")
+    public ResponseEntity<Void> receiveMomoIpn(@RequestBody MomoIpnRequest ipnRequest) {
+        paymentService.processMomoIpn(ipnRequest);
+        return ResponseEntity.noContent().build(); // Trả về 204 cho MoMo biết hệ thống đã nhận dữ liệu
+    }
+
+    // 2. API cho Frontend check trạng thái thanh toán xem đã thành công chưa để chuyển màn hình
+    @GetMapping("/status/{orderId}")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<String> getPaymentStatus(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId) {
+        String userId = jwt.getSubject();
+        String status = paymentService.getPaymentStatus(userId, orderId);
+        return ResponseEntity.ok(status); // Trả về "SUCCESS", "FAILED" hoặc "PENDING"
     }
 }

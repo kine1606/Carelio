@@ -51,4 +51,18 @@ public class InternalOrderController
         orderService.processCompleteOrder(orderId, workerId);
         return ResponseEntity.ok().build();
     }
+
+    @PatchMapping("/{orderId}/payment-success")
+    public ResponseEntity<OrderResponse> paymentSuccess(@PathVariable Long orderId) {
+        log.info("Mạng nội bộ: Nhận lệnh gạt trạng thái PAID cho đơn hàng số {}", orderId);
+
+        return ResponseEntity.ok(orderService.processMarkOrderAsPaid(orderId));
+    }
+
+    // Nhận thông báo trả tiền thất bại
+    @PatchMapping("/{orderId}/payment-failed")
+    public ResponseEntity<Void> paymentFailed(@PathVariable Long orderId) {
+        log.info("Mạng nội bộ: Đơn hàng {} bị hủy giao dịch do thanh toán lỗi", orderId);
+        return ResponseEntity.ok().build();
+    }
 }

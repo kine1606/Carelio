@@ -21,18 +21,16 @@ import java.util.stream.Collectors;
 @EnableWebSecurity
 @EnableMethodSecurity // BẮT BUỘC phải có dòng này để kích hoạt @PreAuthorize
 public class SecurityConfig {
-
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        // 🌟 MỞ CỬA CHO MOMO: Cho phép endpoint này hoạt động công khai không cần Token
+                        .requestMatchers("/api/payments/momo-ipn").permitAll()
                         .anyRequest().authenticated()
                 )
-                .oauth2ResourceServer(oauth -> oauth
-                        // Nạp bộ converter bóc tách Role dưới đây vào
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
-                );
+                .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
         return http.build();
     }
 

@@ -245,4 +245,15 @@ public class OrderService
         log.info("Order ID: {} updated status to {} successfully by user {}", orderId, request.getStatus(), userId);
         return orderMapper.toResponse(saved);
     }
+
+    @Transactional
+    public OrderResponse processMarkOrderAsPaid(Long orderId)
+    {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("Order not found with id: " + orderId));
+        order.setStatus(ServiceOrderStatus.PAID);
+        Order saved = orderRepository.save(order);
+        log.info("Order {} is paid", orderId);
+        return orderMapper.toResponse(saved);
+    }
 }
