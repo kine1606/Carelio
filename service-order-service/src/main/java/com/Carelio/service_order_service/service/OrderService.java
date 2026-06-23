@@ -10,15 +10,18 @@ import com.Carelio.service_order_service.dto.request.UpdateOrderRequest;
 import com.Carelio.service_order_service.dto.request.UpdateOrderStatusRequest;
 import com.Carelio.service_order_service.dto.response.OrderResponse;
 import com.Carelio.service_order_service.entity.Order;
+import com.Carelio.service_order_service.entity.PriceCatalog;
 import com.Carelio.service_order_service.entity.ServiceOrderStatus;
 import com.Carelio.service_order_service.mapper.OrderMapper;
 import com.Carelio.service_order_service.repository.OrderRepository;
+import com.Carelio.service_order_service.repository.PriceCatalogRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -33,7 +36,7 @@ public class OrderService
     private final OrderRepository orderRepository;
     private final HouseholdClient householdClient;
     private final WorkerClient workerClient;
-
+    private final PriceCatalogRepository priceCatalogRepository;
     // =========================================================================
     // SECTION 1: CÁC THAO TÁC CRUD (CUSTOMER LAYER)
     // =========================================================================
@@ -75,9 +78,17 @@ public class OrderService
 
         var ssResponse = workerClient.getServiceSkill(request.getServiceSkillId());
 
+        BigDecimal calculatedPrice = priceCatalogRepository
+                .findByEquipmentCategoryIdAndServiceSkillId(request.getEquipmentCategoryId(), request.getServiceSkillId())
+                .map(PriceCatalog::getPrice)
+                .orElseGet(() -> {
+                    log.warn("Chưa cấu hình giá cho Cặp thiết bị {} và Dịch vụ {}. Đang áp dụng giá sàn mặc định.",
+                            request.getEquipmentCategoryId(), request.getServiceSkillId());
+                    return new BigDecimal("200000");
+                });
         Order order = orderMapper.toEntity(request, userId, evResponse, ssResponse);
         Order saved = orderRepository.save(order);
-
+        order.setPrice(calculatedPrice);
         log.info("Order created successfully with ID: {} by user: {}", saved.getId(), userId);
         return orderMapper.toResponse(saved);
     }

@@ -22,7 +22,8 @@ public interface WorkerClient
 
     @GetMapping("/api/workers/{id}/skills")
     List<WorkerSkillResponse> getWorkerSkills(@PathVariable("id") Long id);
-    @PatchMapping("/api/workers/{workerId}")
+
+    @PatchMapping("/api/internal/workers/{workerId}/rating")
     WorkerProfileResponse updateRating(@PathVariable("workerId") Long workerId, Integer rating);
 
     @GetMapping("/api/workers/{workerId}/profile")
