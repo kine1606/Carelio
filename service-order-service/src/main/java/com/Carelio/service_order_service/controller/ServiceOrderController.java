@@ -4,80 +4,69 @@ import com.Carelio.service_order_service.dto.request.OrderRequest;
 import com.Carelio.service_order_service.dto.request.UpdateOrderRequest;
 import com.Carelio.service_order_service.dto.response.OrderResponse;
 import com.Carelio.service_order_service.service.OrderService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/service-orders")
 @RequiredArgsConstructor
 @Slf4j
-public class ServiceOrderController
-{
+public class ServiceOrderController {
+
     private final OrderService orderService;
 
-    @GetMapping
-    public ResponseEntity<List<OrderResponse>> getAllOrders(@RequestHeader("X-USER-ID") Long userId)
-    {
-        return ResponseEntity.ok(orderService.getAll(userId));
+    // =========================================================================
+    // SECTION 1: CÁC API CÔNG KHAI DÀNH CHO KHÁCH HÀNG (CUSTOMER LAYER)
+    // =========================================================================
+
+    @GetMapping("/api/service-orders")
+    @PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
+    public ResponseEntity<List<OrderResponse>> getAllOrders(@AuthenticationPrincipal Jwt jwt) {
+        String userId = jwt.getSubject(); // Bóc UUID của Khách hàng từ Token
+        return ResponseEntity.ok(orderService.getAll(userId)); // Nhớ sửa tầng Service nhận vào String userId nhé
     }
 
-    @GetMapping("/{orderId}")
+    @GetMapping("/api/service-orders/{orderId}")
+    @PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
     public ResponseEntity<OrderResponse> getOrderById(
-            @RequestHeader("X-USER-ID") Long userId,
-            @PathVariable Long orderId)
-    {
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId) {
+        String userId = jwt.getSubject();
         return ResponseEntity.ok(orderService.getById(userId, orderId));
     }
 
-    @PostMapping
+    @PostMapping("/api/service-orders")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<OrderResponse> createOrder(
-            @RequestHeader("X-USER-ID") Long userId,
-            @RequestBody OrderRequest orderRequest)
-    {
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody @Valid OrderRequest orderRequest) {
+        String userId = jwt.getSubject();
         return ResponseEntity.ok(orderService.createOrder(userId, orderRequest));
     }
 
-    @PatchMapping("/{orderId}")
+    @PatchMapping("/api/service-orders/{orderId}")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<OrderResponse> updateOrder(
-            @RequestHeader("X-USER-ID") Long userId,
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long orderId,
-            @RequestBody UpdateOrderRequest update)
-    {
+            @RequestBody @Valid UpdateOrderRequest update) {
+        String userId = jwt.getSubject();
         return ResponseEntity.ok(orderService.updateOrder(userId, orderId, update));
     }
 
-    @DeleteMapping("/{orderId}")
+    @DeleteMapping("/api/service-orders/{orderId}")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<OrderResponse> deleteOrder(
-            @RequestHeader("X-USER-ID") Long userId,
-            @PathVariable Long orderId)
-    {
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId) {
+        String userId = jwt.getSubject();
         return ResponseEntity.ok(orderService.deleteOrder(userId, orderId));
-    }
-
-    //===================================INTERNAL USE ========================================
-
-    @PatchMapping("/{orderId}/accept")
-    public ResponseEntity<OrderResponse> acceptOrder(@PathVariable Long orderId, @RequestParam Long workerId)
-    {
-        return ResponseEntity.ok(orderService.processAcceptOrder(orderId, workerId));
-    }
-
-    @PatchMapping("/{orderId}/start")
-    public ResponseEntity<OrderResponse> startOrder(
-            @PathVariable Long orderId,
-            @RequestParam Long workerId)
-    {
-        return ResponseEntity.ok(orderService.processStartOrder(workerId, orderId));
-    }
-
-    @PatchMapping("/{orderId}/complete")
-    public ResponseEntity<OrderResponse> completeOrder(
-            @PathVariable Long orderId, @RequestParam Long workerId)
-    {
-        return ResponseEntity.ok(orderService.processCompleteOrder(workerId, orderId));
     }
 }
