@@ -38,7 +38,7 @@ public interface OrderMapper {
     @Mapping(source = "equipmentInfo.equipmentCategoryName", target = "equipmentCategoryName")
     @Mapping(source = "skillInfo.serviceSkillCode", target = "serviceSkillCode")
     Order toEntity(OrderRequest orderRequest,
-                   Long userId,
+                   String userId,
                    EquipmentValidationResponse equipmentInfo,
                    ServiceSkillResponse skillInfo);
 }

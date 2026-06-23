@@ -1,7 +1,9 @@
 package com.Carelio.service_order_service.controller;
 
+import com.Carelio.service_order_service.dto.request.AssignWorkerRequest;
 import com.Carelio.service_order_service.dto.request.OrderRequest;
 import com.Carelio.service_order_service.dto.request.UpdateOrderRequest;
+import com.Carelio.service_order_service.dto.request.UpdateOrderStatusRequest;
 import com.Carelio.service_order_service.dto.response.OrderResponse;
 import com.Carelio.service_order_service.service.OrderService;
 import jakarta.validation.Valid;
@@ -25,8 +27,8 @@ public class ServiceOrderController {
     @GetMapping("/api/service-orders")
     @PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
     public ResponseEntity<List<OrderResponse>> getAllOrders(@AuthenticationPrincipal Jwt jwt) {
-        String userId = jwt.getSubject(); // Bóc UUID của Khách hàng từ Token
-        return ResponseEntity.ok(orderService.getAll(userId)); // Nhớ sửa tầng Service nhận vào String userId nhé
+        String userId = jwt.getSubject();
+        return ResponseEntity.ok(orderService.getAll(userId));
     }
 
     @GetMapping("/api/service-orders/{orderId}")
@@ -47,6 +49,19 @@ public class ServiceOrderController {
         return ResponseEntity.ok(orderService.createOrder(userId, orderRequest));
     }
 
+
+    @PostMapping("/api/service-orders/{orderId}/assign")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<OrderResponse> assignOrder(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId,
+            @RequestBody @Valid AssignWorkerRequest assignWorkerRequest) throws Exception
+    {
+        String userId = jwt.getSubject();
+        return ResponseEntity.ok(orderService.assignWorker(userId, orderId, assignWorkerRequest));
+    }
+
+
     @PatchMapping("/api/service-orders/{orderId}")
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<OrderResponse> updateOrder(
@@ -64,5 +79,15 @@ public class ServiceOrderController {
             @PathVariable Long orderId) {
         String userId = jwt.getSubject();
         return ResponseEntity.ok(orderService.deleteOrder(userId, orderId));
+    }
+
+    @PatchMapping("/api/service-orders/{orderId}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<OrderResponse> updateStatus(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId,
+            @RequestBody @Valid UpdateOrderStatusRequest update) {
+        String userId = jwt.getSubject();
+        return ResponseEntity.ok(orderService.updateStatus(userId, orderId, update));
     }
 }

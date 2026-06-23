@@ -1,6 +1,5 @@
 package com.Carelio.service_order_service.controller;
 
-import com.Carelio.service_order_service.dto.response.OrderResponse;
 import com.Carelio.service_order_service.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,11 +15,11 @@ public class InternalOrderController
 
     private final OrderService orderService;
 
-    @GetMapping("/{orderId}")
-    public ResponseEntity<OrderResponse> getOrderForInternalUse(@PathVariable Long orderId)
-    {
-        return ResponseEntity.ok(orderService.getById(orderId));
-    }
+//    @GetMapping("/{orderId}")
+//    public ResponseEntity<OrderResponse> getOrderForInternalUse(@PathVariable Long orderId)
+//    {
+//        return ResponseEntity.ok(orderService.getById(orderId));
+//    }
 
     @PatchMapping("/api/internal/service-orders/{orderId}/accept")
     public ResponseEntity<Void> acceptOrder(

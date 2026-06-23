@@ -14,15 +14,17 @@ import java.util.List;
 public interface WorkerClient
 {
     @GetMapping("/api/workers/{workerId}")
-    public WorkerProfileResponse getWorkerProfile(@PathVariable("workerId") Long workerId);
+    WorkerProfileResponse getWorkerProfile(@PathVariable("workerId") Long workerId);
 
     @GetMapping("/api/service-skills/{ssid}")
-    public ServiceSkillResponse getServiceSkill(@PathVariable("ssid") Long ssid);
+    ServiceSkillResponse getServiceSkill(@PathVariable("ssid") Long ssid);
+
 
     @GetMapping("/api/workers/{id}/skills")
-    public List<WorkerSkillResponse> getWorkerSkills(@PathVariable("id") Long id);
+    List<WorkerSkillResponse> getWorkerSkills(@PathVariable("id") Long id);
     @PatchMapping("/api/workers/{workerId}")
-    public WorkerProfileResponse updateRating(@PathVariable("workerId") Long workerId, Integer rating);
+    WorkerProfileResponse updateRating(@PathVariable("workerId") Long workerId, Integer rating);
 
-
+    @GetMapping("/api/workers/{workerId}/profile")
+    WorkerProfileResponse getWorkerByKeycloakId(@PathVariable("workerId") String workerId);
 }
