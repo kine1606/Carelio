@@ -1,198 +1,153 @@
 # 🚀 Carelio - Smart Home Appliance Care & Service Ecosystem
 
-Carelio is a **modern microservices-based backend ecosystem** designed to:
-
-* 🏠 Manage household appliances digitally
-* 🧾 Track maintenance history
-* 🔧 Connect users with professional technicians
-* 🛒 Enable an integrated service-commerce platform
+Carelio là hệ thống backend **Microservices** phục vụ quản lý thiết bị gia dụng, điều phối dịch vụ sửa chữa và tích hợp thanh toán trực tuyến.
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ Architecture Overview
 
-The system is built using a **microservices architecture** to ensure:
+* **API Gateway** (Port 8000): Entry point, routing, timeout, CORS
+* **Keycloak** (Port 8080): OAuth2 Identity Provider
+* **Redis** (Port 6379): Distributed caching (JSON)
 
-* High scalability
-* Fault isolation
-* Independent deployment
+### Core Services
 
-### 🔹 Core Services
-
-| Service                   | Port   | Responsibility                                          |
-| ------------------------- | ------ | ------------------------------------------------------- |
-| **Household Service**     | `8082` | Asset management, appliance catalog, room grouping      |
-| **Worker Service**        | `8083` | Technician onboarding, profiles, ratings, skill mapping |
-| **Service Order Service** | `8084` | Order lifecycle & workflow orchestration                |
+| Service               | Port | Responsibility                   |
+| --------------------- | ---- | -------------------------------- |
+| User Service          | 8081 | User profile (sync với Keycloak) |
+| Household Service     | 8082 | Nhà, phòng, thiết bị             |
+| Worker Service        | 8083 | Thợ, skill mapping               |
+| Service Order Service | 8084 | Workflow đơn hàng                |
+| Payment Service       | 8085 | MoMo integration                 |
 
 ---
 
-## 🚦 Business Workflow (State Machine)
+## 🔄 Order Lifecycle
 
-The system enforces strict state transitions for **data consistency across services**:
-
-```mermaid
-stateDiagram-v2
-    [*] --> POSTED : Customer Creates Order
-    
-    POSTED --> CLAIMED : Admin Assigns Worker
-    
-    CLAIMED --> IN_PROGRESS : Worker Accepts Job
-    
-    IN_PROGRESS --> COMPLETED : Worker Completes Job
-    
-    COMPLETED --> [*]
+```
+POSTED → CLAIMED → IN_PROGRESS → COMPLETED → PAID
+             ↘ CANCELLED
 ```
 
-### 📌 State Definitions
-
-| State           | Description               |
-| --------------- | ------------------------- |
-| **POSTED**      | Order created by customer |
-| **CLAIMED**     | Assigned to a technician  |
-| **IN_PROGRESS** | Work started              |
-| **COMPLETED**   | Work finished             |
+* State transition được kiểm soát chặt để đảm bảo consistency
+* Thanh toán retry nếu fail tại COMPLETED
 
 ---
 
-## 🔄 Inter-Service Communication
+## ⚡ Caching Strategy (Redis)
 
-Services communicate via **Spring Cloud OpenFeign**.
+* `ORDER_CACHE`: cache đơn hàng + sync bằng `@CachePut`
+* `ORDER_ATTACHMENTS_LIST_CACHE`: cache list file, evict khi mutate
+* `ORDER_REVIEW_CACHE`: cache review theo orderId
+* `ROOM_CACHE`: evict khi soft delete
+* `WORKER_SKILLS_LIST_CACHE`: evict khi update skill
 
-### 🧬 Sequence Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Worker
-    participant WS as Worker Service
-    participant OS as Order Service
-
-    %% ACCEPT JOB
-    Worker->>WS: Accept Job
-    WS->>OS: Update Order → IN_PROGRESS
-    WS->>WS: Update Worker → BUSY
-
-    %% COMPLETE JOB
-    Worker->>WS: Complete Job
-    WS->>OS: Update Order → COMPLETED
-    WS->>WS: Update Worker → AVAILABLE
-```
-
-### 🔑 Key Logic
-
-* Worker must be **AVAILABLE** to accept a job
-* Worker becomes **BUSY** when job starts
-* Worker becomes **AVAILABLE again** after completion
-* Order state strictly follows lifecycle rules
+👉 Sử dụng **Jackson JSON serializer (Spring Boot 4.x)**
 
 ---
 
-## 🛠️ Infrastructure (Docker + PostgreSQL)
+## 🛡️ Security & Networking
 
-Each microservice has its own **isolated database**.
+* OAuth2 Resource Server (JWT từ Keycloak)
+* `jwk-set-uri` nội bộ (Docker network)
+* Timeout control:
 
-### 📊 Database Configuration
-
-| Service   | Container            | Port   | Database       | User                |
-| --------- | -------------------- | ------ | -------------- | ------------------- |
-| Household | `household-postgres` | `5434` | `household_db` | `household_service` |
-| Worker    | `worker-postgres`    | `5435` | `worker_db`    | `worker_service`    |
-| Order     | `order-postgres`     | `5436` | `order_db`     | `order_service`     |
+    * Gateway: 2s connect / 5s response
+    * Feign: configurable
+    * Tomcat: 20s
 
 ---
 
-## 🚀 Getting Started
+## 🗄️ Database (Isolated per Service)
 
-### 🔧 Prerequisites
-
-* Java **JDK 17**
-* Maven **3.8+**
-* Docker & Docker Compose
+| Service   | DB           | Port |
+| --------- | ------------ | ---- |
+| Household | household_db | 5434 |
+| Worker    | worker_db    | 5435 |
+| Order     | order_db     | 5436 |
+| Keycloak  | keycloak_db  | 5437 |
+| User      | user_db      | 5438 |
+| Payment   | payment_db   | 5439 |
 
 ---
 
-### 1️⃣ Start Databases
+## 🚀 Run System
+
+### 1. Build
 
 ```bash
-docker-compose up -d
+mvn clean package -DskipTests
 ```
 
-Verify:
+### 2. Start Docker
 
 ```bash
-docker ps
+docker-compose down --volumes --remove-orphans
+docker-compose up --build -d
 ```
 
----
-
-### 2️⃣ Run Microservices
-
-Run each service in separate terminals:
+### 3. Check
 
 ```bash
-mvn clean compile spring-boot:run
+docker-compose ps
 ```
 
 ---
 
-### 3️⃣ API Documentation
+## 🎯 API Access (via Gateway)
 
-* Worker Service: http://localhost:8083/swagger-ui.html
-* Order Service: http://localhost:8084/swagger-ui.html
+Base URL:
+
+```
+http://localhost:8000
+```
+
+| Feature   | Endpoint                         |
+| --------- | -------------------------------- |
+| User      | `/api/users/profile`             |
+| Household | `/api/houses`, `/api/equipments` |
+| Orders    | `/api/service-orders`            |
+| Payments  | `/api/payments`                  |
+
+Keycloak Admin:
+
+```
+http://localhost:8080
+```
 
 ---
 
-## ⚙️ Configuration & Troubleshooting
+## 🛠️ Troubleshooting
 
-### 🔹 Enable Bean Overriding
+Logs:
 
-```properties
-spring.main.allow-bean-definition-overriding=true
+```bash
+docker-compose logs -f <service-name>
 ```
 
-### 🔹 Feign Client Rules
+DB lỗi schema:
 
-* Use correct URLs:
-
-```
-http://localhost:<port>
-```
-
-* Avoid whitespace or malformed endpoints
+* Drop table
+* Restart container
+* Hibernate auto recreate
 
 ---
 
 ## 📌 Tech Stack
 
-* ☕ Java 17 + Spring Boot
-* ☁️ Spring Cloud OpenFeign
-* 🐘 PostgreSQL 16
-* 🐳 Docker & Docker Compose
-* 📄 OpenAPI (Swagger)
+* Spring Boot (Microservices)
+* Spring Cloud Gateway
+* Keycloak (OAuth2)
+* Redis (Caching)
+* PostgreSQL
+* Docker Compose
+* OpenFeign
 
 ---
 
-## 💡 Future Improvements
+## 🎯 Design Principles
 
-* API Gateway integration
-* Service Discovery (Eureka / Consul)
-* Authentication (JWT / OAuth2)
-* Observability (Prometheus + Grafana)
-* CI/CD pipelines
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to:
-
-* Fork the repository
-* Create feature branches
-* Submit pull requests
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License.
+* Service isolation (DB per service)
+* Eventual consistency
+* Cache-first read optimization
+* Secure-by-default (OAuth2)
