@@ -25,6 +25,7 @@ public class ServiceSkillService
     private final WorkerSkillRepository workerSkillRepository;
     private final ServiceSkillRepository serviceSkillRepository;
     private final ServiceSkillMapper serviceSkillMapper;
+
     public ServiceSkillResponse createServiceSkill(ServiceSkillRequest req)
     {
         if(serviceSkillRepository.existsByServiceSkillCode(req.getServiceSkillCode()))

@@ -22,6 +22,9 @@ import com.Carelio.worker_service.repository.WorkerSkillRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +48,7 @@ public class WorkerService
 
     // POST /api/workers
     @Transactional
+    @CachePut(value = "WORKER_PROFILE_CACHE", key = "#userId")
     public WorkerProfileResponse createWorkerProfile(String userId, WorkerProfileRequest workerProfileRequest)
     {
         if (workerProfileRepository.existsByUserId(userId)) {
@@ -58,6 +62,7 @@ public class WorkerService
     }
 
     // GET /api/workers/{id}
+    @Cacheable(value = "WORKER_PROFILE_CACHE", key = "#userId")
     public WorkerProfileResponse getById(Long id)
     {
         WorkerProfile workerProfile = workerProfileRepository.findById(id)
@@ -65,6 +70,7 @@ public class WorkerService
         return workerProfileMapper.toResponse(workerProfile);
     }
 
+    @Cacheable(value = "WORKER_PROFILE_CACHE", key = "#userId")
     public WorkerProfileResponse getByKeyCloakUserId(String userId)
     {
         WorkerProfile workerProfile = workerProfileRepository.findByUserId(userId)
@@ -82,6 +88,7 @@ public class WorkerService
 
     //    POST /api/workers/{workerId}/skills
     @Transactional
+    @CacheEvict(value = "WORKER_SKILLS_LIST_CACHE", key = "#userId")
     public WorkerSkillResponse addWorkerSkill(String userId, WorkerSkillRequest request)
     {
         WorkerProfile profile = workerProfileRepository.findByUserId(userId)
@@ -111,7 +118,7 @@ public class WorkerService
         log.info("Worker skill {} created successfully ", savedSkill.getId());
         return workerSkillMapper.toResponse(savedSkill);
     }
-
+    @Cacheable(value = "WORKER_SKILLS_LIST_CACHE", key = "#userId")
     public List<WorkerSkillResponse> getWorkerSkills(Long workerId)
     {
         WorkerProfile profile = workerProfileRepository.findById(workerId)
@@ -226,6 +233,7 @@ public class WorkerService
     }
 
     @Transactional
+    @CachePut(value="WORKER_PROFILE_CACHE", key = "#userId")
     public WorkerProfileResponse updateWorkerProfile(String userId, UpdateWorkerProfileRequest request)
     {
         WorkerProfile profile = workerProfileRepository.findByUserId(userId)
@@ -238,6 +246,7 @@ public class WorkerService
     }
 
     @Transactional
+    @CacheEvict(value="WORKER_PROFILE_CACHE", key = "#userId")
     public void deleteWorkerProfile(String userId)
     {
         WorkerProfile profile = workerProfileRepository.findByUserId(userId)
