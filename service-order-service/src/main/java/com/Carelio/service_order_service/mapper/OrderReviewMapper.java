@@ -10,6 +10,5 @@ import java.util.List;
 public interface OrderReviewMapper
 {
     OrderReviewResponse toResponse(OrderReview review);
-
     List<OrderReviewResponse> toResponseList(List<OrderReview> reviews);
 }

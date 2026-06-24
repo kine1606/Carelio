@@ -13,10 +13,10 @@ import com.Carelio.service_order_service.repository.OrderReviewRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -54,6 +54,7 @@ public class OrderReviewService {
 
     // POST /api/service-orders/{orderId}/reviews
     @Transactional
+    @CachePut(value = "ORDER_REVIEW_CACHE", key = "#orderId")
     public OrderReviewResponse createReview(String userId, Long orderId, OrderReviewRequest request) {
         Order order = getOrderEntity(orderId);
 
@@ -71,7 +72,7 @@ public class OrderReviewService {
 
         OrderReview review = OrderReview.builder()
                 .orderId(orderId)
-                .userId(userId) // Lưu chính xác mã UUID của Khách
+                .userId(userId)
                 .workerId(order.getWorkerId())
                 .rating(request.getRating())
                 .comment(request.getComment())
@@ -91,11 +92,12 @@ public class OrderReviewService {
     }
 
     // GET /api/service-orders/{orderId}/reviews
-    public List<OrderReviewResponse> getReviews(String userId, Long orderId) {
+    @Cacheable(value = "ORDER_REVIEW_CACHE", key = "#orderId")
+    public OrderReviewResponse getReview(String userId, Long orderId)
+    {
         Order order = getOrderEntity(orderId);
         validateOrderAccess(order, userId);
-        List<OrderReview> reviews = orderReviewRepository.findAllByOrderId(orderId);
-        log.info("Tìm thấy {} đánh giá cho đơn hàng số: {}", reviews.size(), orderId);
-        return orderReviewMapper.toResponseList(reviews);
+        OrderReview review = orderReviewRepository.findByOrderId(orderId);
+        return orderReviewMapper.toResponse(review);
     }
 }

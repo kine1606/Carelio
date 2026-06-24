@@ -12,8 +12,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/service-orders")
 @RequiredArgsConstructor
@@ -22,8 +20,8 @@ public class OrderReviewController
 
     private final OrderReviewService orderReviewService;
 
-    // POST /api/service-orders/{orderId}/reviews -> Khách hàng viết đánh giá
-    @PostMapping("/{orderId}/reviews")
+    // POST /api/service-orders/{orderId}/review
+    @PostMapping("/{orderId}/review")
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<OrderReviewResponse> createReview(
             @AuthenticationPrincipal Jwt jwt,
@@ -35,14 +33,14 @@ public class OrderReviewController
                 .body(orderReviewService.createReview(userId, orderId, request));
     }
 
-    // GET /api/service-orders/{orderId}/reviews
-    @GetMapping("/{orderId}/reviews")
+    // GET /api/service-orders/{orderId}/review
+    @GetMapping("/{orderId}/review")
     @PreAuthorize("hasRole('CUSTOMER') or hasRole('WORKER') or hasRole('ADMIN')")
-    public ResponseEntity<List<OrderReviewResponse>> getReviews(
+    public ResponseEntity<OrderReviewResponse> getReview(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long orderId)
     {
         String userId = jwt.getSubject();
-        return ResponseEntity.ok(orderReviewService.getReviews(userId, orderId));
+        return ResponseEntity.ok(orderReviewService.getReview(userId, orderId));
     }
 }

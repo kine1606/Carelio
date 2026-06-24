@@ -44,6 +44,15 @@ public class OrderAttachmentController {
         return ResponseEntity.ok(orderAttachmentService.getAttachments(userId, orderId));
     }
 
+    @GetMapping("/{orderId}/attachments/{attachmentId}")
+    @PreAuthorize("hasRole('CUSTOMER') or hasRole('WORKER') or hasRole('ADMIN')")
+    public ResponseEntity<OrderAttachmentResponse> getAttachmentById(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId,
+            @PathVariable Long attachmentId) {
+        String userId = jwt.getSubject();
+        return ResponseEntity.ok(orderAttachmentService.getAttachmentById(userId, orderId, attachmentId));
+    }
     @PatchMapping("/{orderId}/attachments/{attachmentId}")
     @PreAuthorize("hasRole('CUSTOMER') or hasRole('WORKER')")
     public ResponseEntity<OrderAttachmentResponse> updateAttachment(

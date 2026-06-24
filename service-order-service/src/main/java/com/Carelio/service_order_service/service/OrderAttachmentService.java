@@ -13,6 +13,8 @@ import com.Carelio.service_order_service.repository.OrderRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,6 +60,7 @@ public class OrderAttachmentService {
 
     // POST /api/service-orders/{orderId}/attachments
     @Transactional
+    @CacheEvict(value = "ORDER_ATTACHMENTS_LIST_CACHE", key = "#orderId")
     public OrderAttachmentResponse createAttachment(String userId, Long orderId, OrderAttachmentRequest request) {
         Order order = getOrderEntity(orderId);
 
@@ -76,6 +79,7 @@ public class OrderAttachmentService {
     }
 
     // GET /api/service-orders/{orderId}/attachments
+    @Cacheable(value = "ORDER_ATTACHMENTS_LIST_CACHE", key = "#orderId")
     public List<OrderAttachmentResponse> getAttachments(String userId, Long orderId) {
         Order order = getOrderEntity(orderId);
 
@@ -86,9 +90,23 @@ public class OrderAttachmentService {
         return orderAttachmentMapper.toResponseList(attachments);
     }
 
+    // GET /api/service-orders/{orderId}/attachments/{attachmentId}
+    @Cacheable(value = "SINGLE_ATTACHMENT_CACHE", key = "#attachmentId")
+    public OrderAttachmentResponse getAttachmentById(String userId, Long orderId, Long attachementId)
+    {
+        Order order = getOrderEntity(orderId);
+
+        validateOrderAccess(order, userId);
+
+        OrderAttachment attachment = orderAttachmentRepository.findById(attachementId)
+                .orElseThrow(() -> new EntityNotFoundException("Attachment not found with id: " + attachementId));
+        return orderAttachmentMapper.toResponse(attachment);
+    }
+
     //PATCH /api/service-orders/{orderId}/attachments/{attachmentId}
 
     @Transactional
+    @CacheEvict(value = {"ORDER_ATTACHMENTS_LIST_CACHE", "SINGLE_ATTACHMENT_CACHE"}, key = "#orderId", beforeInvocation = false)
     public OrderAttachmentResponse updateAttachment(String userId, Long orderId, Long attachmentId, UpdateAttachmentRequest request)
     {
         Order order = getOrderEntity(orderId);
@@ -109,6 +127,7 @@ public class OrderAttachmentService {
 
     // DELETE /api/service-orders/{orderId}/attachments/{attachmentId}
     @Transactional
+    @CacheEvict(value = {"ORDER_ATTACHMENTS_LIST_CACHE", "SINGLE_ATTACHMENT_CACHE"}, key = "#orderId")
     public void deleteAttachment(String userId, Long orderId, Long attachmentId)
     {
         Order order = getOrderEntity(orderId);

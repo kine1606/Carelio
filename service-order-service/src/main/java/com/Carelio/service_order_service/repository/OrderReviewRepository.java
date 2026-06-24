@@ -12,4 +12,6 @@ public interface OrderReviewRepository extends JpaRepository<OrderReview, Long>
 {
     List<OrderReview> findAllByOrderId(Long orderId);
     Optional<OrderReview> findByOrderIdAndUserId(Long orderId, String userId);
+
+    OrderReview findByOrderId(Long orderId);
 }
