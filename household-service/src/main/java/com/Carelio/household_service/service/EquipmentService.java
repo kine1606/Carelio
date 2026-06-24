@@ -17,6 +17,9 @@ import com.Carelio.household_service.repository.RoomRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,11 +44,12 @@ public class EquipmentService
         return equipmentMapper.toResponseList(equipments);
     }
 
-    public EquipmentResponse getById(String userId, Long id)
+    @Cacheable(value = "EQUIPMENT_CACHE", key = "#equipmentId")
+    public EquipmentResponse getById(String userId, Long equipmentId)
     {
-        Equipment e = equipmentRepository.findByIdAndRoom_House_UserId(id, userId)
-                .orElseThrow(() -> new EntityNotFoundException("Equipment not found with id:" + id));
-        log.info("Equipment found with id:{}", id);
+        Equipment e = equipmentRepository.findByIdAndRoom_House_UserId(equipmentId, userId)
+                .orElseThrow(() -> new EntityNotFoundException("Equipment not found with id:" + equipmentId));
+        log.info("Equipment found with id:{}", equipmentId);
         return equipmentMapper.toResponse(e);
     }
 
@@ -62,6 +66,7 @@ public class EquipmentService
     }
 
     @Transactional
+    @CachePut(value = "EQUIPMENT_CACHE", key = "#result.id")
     public EquipmentResponse createEquipment(String userId, CreateEquipmentRequest req)
     {
         Room room = roomRepository.findByIdAndHouse_UserId(req.getRoomId(), userId)
@@ -79,6 +84,7 @@ public class EquipmentService
     }
 
     @Transactional
+    @CachePut(value = "EQUIPMENT_CACHE", key = "#result.id")
     public EquipmentResponse updateEquipment(String userId, Long equipmentId, UpdateEquipmentRequest req)
     {
         Equipment e = equipmentRepository.findByIdAndRoom_House_UserId(equipmentId, userId)
@@ -100,6 +106,7 @@ public class EquipmentService
         return equipmentMapper.toResponse(savedEquipment);
     }
 
+    @CacheEvict(value = "EQUIPMENT_CACHE", key = "#result.id")
     public EquipmentResponse deleteEquipment(String userId, Long id)
     {
         Equipment e = equipmentRepository.findByIdAndRoom_House_UserId(id, userId)

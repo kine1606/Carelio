@@ -8,6 +8,9 @@ import com.Carelio.household_service.mapper.HouseMapper;
 import com.Carelio.household_service.repository.HouseRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +26,7 @@ public class HouseService
     private final HouseRepository houseRepository;
     private final HouseMapper houseMapper;
 
+    @CachePut(value = "HOUSE_CACHE", key = "#result.id")
     public HouseResponse create(String userId, CreateHouseRequest request)
     {
         House house = houseMapper.toEntity(request);
@@ -38,6 +42,7 @@ public class HouseService
         return houseMapper.toResponseList(houses);
     }
 
+    @Cacheable(value ="HOUSE_CACHE", key = "#houseId")
     public HouseResponse getById(String userId, Long houseId) {
         House house = houseRepository.findByIdAndUserId(houseId, userId)
                 .orElseThrow(() -> new RuntimeException("House not found with id: " + houseId));
@@ -45,6 +50,7 @@ public class HouseService
         return houseMapper.toResponse(house);
     }
 
+    @CachePut(value = "HOUSE_CACHE", key = "#result.id")
     public HouseResponse update(String userId, Long houseId, UpdateHouseRequest request)
     {
         House house = houseRepository.findByIdAndUserId(houseId, userId)
@@ -55,6 +61,7 @@ public class HouseService
         return houseMapper.toResponse(saved);
     }
 
+    @CacheEvict(value = "HOUSE_CACHE", key = "#houseId")
     public HouseResponse delete(String userId, Long houseId)
     {
         House house = houseRepository.findByIdAndUserId(houseId, userId)

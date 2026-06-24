@@ -12,6 +12,9 @@ import com.Carelio.household_service.repository.RoomRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +38,7 @@ public class RoomService
         return roomMapper.toResponseList(rooms);
     }
 
+    @Cacheable(value = "ROOM_CACHE", key = "#roomId")
     public RoomResponse getById(String userId, Long roomId)
     {
         Room room = roomRepository.findByIdAndHouse_UserId(roomId, userId)
@@ -43,6 +47,7 @@ public class RoomService
     }
 
     @Transactional
+    @CachePut(value = "ROOM_CACHE", key = "#result.id")
     public RoomResponse createRoom(String userId, CreateRoomRequest request)
     {
         House house = houseRepository.findByIdAndUserId(request.getHouseId(), userId)
@@ -55,6 +60,7 @@ public class RoomService
     }
 
     @Transactional
+    @CachePut(value = "ROOM_CACHE", key = "#result.id")
     public RoomResponse updateRoom(String userId, Long roomId, UpdateRoomRequest req)
     {
         Room room = roomRepository.findByIdAndHouse_UserId(roomId, userId)
@@ -71,10 +77,11 @@ public class RoomService
     }
 
     @Transactional
-    public RoomResponse softDelete(String ownerId, Long id)
+    @CacheEvict(value = "ROOM_CACHE", key = "#roomId")
+    public RoomResponse softDelete(String ownerId, Long roomId)
     {
-        Room room = roomRepository.findByIdAndHouse_UserId(id, ownerId)
-                .orElseThrow(() -> new EntityNotFoundException("Room not found with id: " +  id));
+        Room room = roomRepository.findByIdAndHouse_UserId(roomId, ownerId)
+                .orElseThrow(() -> new EntityNotFoundException("Room not found with id: " +  roomId));
         if(!room.getEquipments().isEmpty())
         {
             throw new RuntimeException("Cannot delete this room because it has equipments");
