@@ -63,6 +63,7 @@ public class InternalOrderController
     @PatchMapping("/{orderId}/payment-failed")
     public ResponseEntity<Void> paymentFailed(@PathVariable Long orderId) {
         log.info("Mạng nội bộ: Đơn hàng {} bị hủy giao dịch do thanh toán lỗi", orderId);
+        orderService.processMarkOrderAsFailed(orderId);
         return ResponseEntity.ok().build();
     }
 }

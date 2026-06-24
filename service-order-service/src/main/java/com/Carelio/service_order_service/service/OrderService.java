@@ -18,6 +18,9 @@ import com.Carelio.service_order_service.repository.PriceCatalogRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +45,7 @@ public class OrderService
     // =========================================================================
 
     // GET /api/service-orders/{orderId}
+    @Cacheable(value = "ORDER_CACHE", key = "#orderId")
     public OrderResponse getById(String userId, Long orderId)
     {
         Order order = getOrderEntity(userId, orderId);
@@ -50,6 +54,7 @@ public class OrderService
     }
 
     // GET /api/internal/service-orders/{orderId}
+    @Cacheable(value = "ORDER_CACHE", key = "#orderId")
     public OrderResponse getByIdInternal(Long orderId)
     {
         Order order = orderRepository.findById(orderId)
@@ -68,6 +73,7 @@ public class OrderService
 
     // POST /api/service-orders
     @Transactional
+    @CachePut(value = "ORDER_CACHE", key = "#result.id")
     public OrderResponse createOrder(String userId, OrderRequest request)
     {
         var evResponse = householdClient.validate(
@@ -87,14 +93,15 @@ public class OrderService
                     return new BigDecimal("200000");
                 });
         Order order = orderMapper.toEntity(request, userId, evResponse, ssResponse);
-        Order saved = orderRepository.save(order);
         order.setPrice(calculatedPrice);
+        Order saved = orderRepository.save(order);
         log.info("Order created successfully with ID: {} by user: {}", saved.getId(), userId);
         return orderMapper.toResponse(saved);
     }
 
     // DELETE /api/service-orders/{orderId}
     @Transactional
+    @CacheEvict(value = "ORDER_CACHE", key ="#orderId")
     public OrderResponse deleteOrder(String userId, Long orderId)
     {
         Order order = getOrderEntity(userId, orderId);
@@ -106,6 +113,7 @@ public class OrderService
 
     // PATCH /api/service-orders/{orderId}
     @Transactional
+    @CachePut(value = "ORDER_CACHE", key = "#result.id")
     public OrderResponse updateOrder(String userId, Long orderId, UpdateOrderRequest request)
     {
         Order order = getOrderEntity(userId, orderId);
@@ -130,6 +138,7 @@ public class OrderService
 
     // PATCH /api/orders/{id}/assign
     @Transactional
+    @CachePut(value = "ORDER_CACHE", key = "#orderId")
     public OrderResponse assignWorker(String userId, Long orderId, AssignWorkerRequest workerRequest) throws Exception
     {
         Order order = getOrderEntity(userId, orderId);
@@ -178,6 +187,7 @@ public class OrderService
 
     // Phục vụ API nội bộ /accept công việc từ phía Thợ
     @Transactional
+    @CachePut(value = "ORDER_CACHE", key = "#orderId")
     public OrderResponse processAcceptOrder(Long orderId, Long workerId)
     {
         Order order = orderRepository.findById(orderId)
@@ -197,6 +207,7 @@ public class OrderService
 
     // Phục vụ API nội bộ /start công việc từ phía Thợ
     @Transactional
+    @CachePut(value = "ORDER_CACHE", key = "#orderId")
     public OrderResponse processStartOrder(Long orderId, Long workerId)
     {
         Order order = orderRepository.findById(orderId)
@@ -217,6 +228,7 @@ public class OrderService
 
     // Phục vụ API nội bộ /complete
     @Transactional
+    @CachePut(value = "ORDER_CACHE", key = "#orderId")
     public OrderResponse processCompleteOrder(Long orderId, Long workerId)
     {
         Order order = orderRepository.findById(orderId)
@@ -237,6 +249,7 @@ public class OrderService
 
     // Cập nhật trạng thái thủ công (Dành cho Admin hoặc luồng khẩn cấp)
     @Transactional
+    @CachePut(value = "ORDER_CACHE", key = "#orderId")
     public OrderResponse updateStatus(String userId, Long orderId, UpdateOrderStatusRequest request)
     {
         Order order = getOrderEntity(userId, orderId);
@@ -247,13 +260,30 @@ public class OrderService
     }
 
     @Transactional
-    public OrderResponse processMarkOrderAsPaid(Long orderId)
-    {
+    @CacheEvict(value = "ORDER_CACHE", key = "#orderId")
+    public OrderResponse processMarkOrderAsPaid(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Order not found with id: " + orderId));
-        order.setStatus(ServiceOrderStatus.PAID);
+
+        if (order.getStatus() != ServiceOrderStatus.COMPLETED)
+        {
+            throw new IllegalStateException("Đơn hàng phải ở trạng thái COMPLETED mới được phép chuyển sang PAID!");
+        }
+
+        order.setStatus(ServiceOrderStatus.PAID); // Chính thức đóng vòng đời đơn hàng thành công
         Order saved = orderRepository.save(order);
-        log.info("Order {} is paid", orderId);
+        log.info("Đơn hàng số {} đã chính thức chuyển trạng thái sang PAID.", orderId);
         return orderMapper.toResponse(saved);
+    }
+
+    @Transactional
+    @CacheEvict(value = "ORDER_CACHE", key = "#orderId")
+    public void processMarkOrderAsFailed(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("Order not found with id: " + orderId));
+
+        // Nghiệp vụ linh hoạt: Khi thanh toán lỗi, ta giữ nguyên trạng thái COMPLETED
+        // để Khách hàng có thể bấm nút "Thử lại" hoặc đổi sang phương thức thanh toán khác (như Tiền mặt)
+        log.warn("Đơn hàng số {} thanh toán không thành công. Giữ nguyên trạng thái COMPLETED chờ xử lý lại.", orderId);
     }
 }
