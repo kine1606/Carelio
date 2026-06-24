@@ -1,7 +1,9 @@
 version: '3.8'
 
 services:
-  # --- DATABASES LAYER ---
+  # =========================================================================
+  # 1. DATABASES LAYER (Tầng Cơ sở dữ liệu - Gom đủ 6 DB độc lập)
+  # =========================================================================
   household-postgres:
     image: postgres:16
     container_name: household-postgres
@@ -74,7 +76,16 @@ services:
     volumes:
       - payment_postgres_data:/var/lib/postgresql/data
 
-  # --- IDENTITY PROVIDER (KEYCLOAK SERVER) ---
+  redis:
+    image: redis:7-alpine
+    container_name: carelio-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+  # =========================================================================
+  # 2. IDENTITY PROVIDER (Bộ xác thực tập trung Keycloak Server)
+  # =========================================================================
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
     container_name: carelio-keycloak
@@ -90,8 +101,10 @@ services:
       - "8080:8080"
     depends_on:
       - keycloak-postgres
-#
-##  # --- APPLICATION LAYER ---
+
+#  # =========================================================================
+#  # 3. APPLICATION LAYER (Tầng Nghiệp vụ - Mở Public Port để test chéo thoải mái)
+#  # =========================================================================
 #  user-service:
 #    build:
 #      context: ./user-service
@@ -133,6 +146,7 @@ services:
 #      - SPRING_DATASOURCE_URL=jdbc:postgresql://worker-postgres:5432/worker_db
 #      - SPRING_DATASOURCE_USERNAME=worker_service
 #      - SPRING_DATASOURCE_PASSWORD=worker_password
+#      # 🔗 Giao tiếp Feign nội bộ: Gọi qua tên Container của thằng khác
 #      - HOUSEHOLD_SERVICE_URL=http://household-service:8082
 #      - ORDER_SERVICE_URL=http://service-order-service:8084
 #    volumes:
@@ -151,30 +165,56 @@ services:
 #      - SPRING_DATASOURCE_URL=jdbc:postgresql://order-postgres:5432/order_db
 #      - SPRING_DATASOURCE_USERNAME=order_service
 #      - SPRING_DATASOURCE_PASSWORD=order_password
+#      - HOUSEHOLD_SERVICE_URL=http://household-service:8082
+#      - WORKER_SERVICE_URL=http://worker-service:8083
 #    volumes:
 #      - ./service-order-service:/app
 #    depends_on:
 #      - order-postgres
+#
+#  payment-service:
+#    build:
+#      context: ./payment-service
+#      dockerfile: Dockerfile
+#    container_name: payment-service
+#    ports:
+#      - "8085:8085"
+#    environment:
+#      - SPRING_DATASOURCE_URL=jdbc:postgresql://payment-postgres:5432/payment_db
+#      - SPRING_DATASOURCE_USERNAME=payment_service
+#      - SPRING_DATASOURCE_PASSWORD=payment_password
+#      - ORDER_SERVICE_URL=http://service-order-service:8084
+#    volumes:
+#      - ./payment-service:/app
+#    depends_on:
+#      - payment-postgres
 
-  # --- API GATEWAY ---
-  api-gateway:
-    build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
-    container_name: api-gateway
-    ports:
-      - "8000:8000"
-    environment:
-      - USER_SERVICE_URL=http://user-service:8081
-      - WORKER_SERVICE_URL=http://worker-service:8083
-      - HOUSEHOLD_SERVICE_URL=http://household-service:8082
-      - ORDER_SERVICE_URL=http://service-order-service:8084
+#  # =========================================================================
+#  # 4. API GATEWAY LAYER (Cổng ngõ tập trung - Trấn giữ cổng 8000)
+#  # =========================================================================
+#  api-gateway:
+#    build:
+#      context: ./api-gateway
+#      dockerfile: Dockerfile
+#    container_name: api-gateway
+#    ports:
+#      - "8000:8000"
+#    environment:
+#      - USER_SERVICE_URL=http://user-service:8081
+#      - WORKER_SERVICE_URL=http://worker-service:8083
+#      - HOUSEHOLD_SERVICE_URL=http://household-service:8082
+#      - ORDER_SERVICE_URL=http://service-order-service:8084
+#      - PAYMENT_SERVICE_URL=http://payment-service:8085
 #    depends_on:
 #      - user-service
 #      - worker-service
 #      - household-service
 #      - service-order-service
+#      - payment-service
 
+# =========================================================================
+# VOLUMES MANAGEMENT (Quản lý lưu trữ dữ liệu ổ cứng cho Postgres)
+# =========================================================================
 volumes:
   household_postgres_data:
   worker_postgres_data:
@@ -182,3 +222,4 @@ volumes:
   keycloak_postgres_data:
   user_postgres_data:
   payment_postgres_data:
+  redis_data:

@@ -7,31 +7,42 @@ spring:
 
   cloud:
     gateway:
+      httpclient:
+        connect-timeout: 2000
+        response-timeout: 5s
       routes:
-        # 1. Tuyến đường cho USER-SERVICE
+        # 1. Tuyến đường cho USER-SERVICE (Cổng 8081)
         - id: user-service-route
-          uri: ${USER_SERVICE_URL:http://localhost:8081} # <-- Nếu có biến USER_SERVICE_URL thì lấy, không thì mặc định localhost
+          uri: ${USER_SERVICE_URL:http://user-service:8081}
           predicates:
             - Path=/api/users/**
 
-        # 2. Tuyến đường cho WORKER-SERVICE
+        # 2. Tuyến đường cho WORKER-SERVICE (Cổng 8083)
         - id: worker-service-route
-          uri: ${WORKER_SERVICE_URL:http://localhost:8083}
+          uri: ${WORKER_SERVICE_URL:http://worker-service:8083}
           predicates:
             - Path=/api/workers/**
 
-        # 3. Tuyến đường cho HOUSEHOLD-SERVICE
+        # 3. Tuyến đường cho HOUSEHOLD-SERVICE (Cổng 8082)
+        # SỬA LẠI: Thêm đầy đủ path thiết bị và danh mục để không bị lỗi 404
         - id: household-service-route
-          uri: ${HOUSEHOLD_SERVICE_URL:http://localhost:8082}
+          uri: ${HOUSEHOLD_SERVICE_URL:http://household-service:8082}
           predicates:
-            - Path=/api/houses/**
+            - Path=/api/houses/**, /api/equipment-category/**, /api/equipments/**
 
-        # 4. Tuyến đường cho SERVICE-ORDER-SERVICE
+        # 4. Tuyến đường cho SERVICE-ORDER-SERVICE (Cổng 8084)
         - id: order-service-route
-          uri: ${ORDER_SERVICE_URL:http://localhost:8084}
+          uri: ${ORDER_SERVICE_URL:http://service-order-service:8084}
           predicates:
             - Path=/api/service-orders/**
 
+        # 5. Tuyến đường cho PAYMENT-SERVICE (Cổng 8085) - THÊM MỚI
+        - id: payment-service-route
+          uri: ${PAYMENT_SERVICE_URL:http://payment-service:8085}
+          predicates:
+            - Path=/api/payments/**
+
+      # Cấu hình CORS global cho phép tất cả các nguồn gọi vào cổng 8000 không bị chặn UI
       globalcors:
         cors-configurations:
           '[/**]':
@@ -40,6 +51,7 @@ spring:
               - GET
               - POST
               - PUT
+              - PATCH
               - DELETE
               - OPTIONS
             allowedHeaders: "*"
