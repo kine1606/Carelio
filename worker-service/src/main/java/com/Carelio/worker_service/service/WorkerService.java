@@ -25,6 +25,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -86,6 +88,11 @@ public class WorkerService
         return workerProfileMapper.toResponseList(profileList);
     }
 
+    public Page<WorkerProfileResponse> getAllWorkerProfilesWithPagination(Pageable pageable)
+    {
+        Page<WorkerProfile> profileList = workerProfileRepository.findAll(pageable);
+        return profileList.map(workerProfileMapper::toResponse);
+    }
     //    POST /api/workers/{workerId}/skills
     @Transactional
     @CacheEvict(value = "WORKER_SKILLS_LIST_CACHE", key = "#userId")
