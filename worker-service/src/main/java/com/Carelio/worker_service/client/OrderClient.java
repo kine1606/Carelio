@@ -46,25 +46,25 @@ public interface OrderClient {
 
                 @Override
                 public void acceptOrder(Long orderId, Long workerId) {
-                    log.error("🚨 Circuit Breaker [acceptOrder] kích hoạt! Thợ {} không thể nhận đơn {} vì lỗi: {}",
+                    log.error("Circuit Breaker [acceptOrder] kích hoạt! Thợ {} không thể nhận đơn {} vì lỗi: {}",
                             workerId, orderId, cause.getMessage());
                 }
 
                 @Override
                 public void startOrder(Long orderId, Long workerId) {
-                    log.error("🚨 Circuit Breaker [startOrder] kích hoạt! Thợ {} không thể bắt đầu đơn {} vì lỗi: {}",
+                    log.error("Circuit Breaker [startOrder] kích hoạt! Thợ {} không thể bắt đầu đơn {} vì lỗi: {}",
                             workerId, orderId, cause.getMessage());
                 }
 
                 @Override
                 public void completeOrder(Long orderId, Long workerId) {
-                    log.error("🚨 Circuit Breaker [completeOrder] kích hoạt! Thợ {} không thể hoàn thành đơn {} vì lỗi: {}",
+                    log.error("Circuit Breaker [completeOrder] kích hoạt! Thợ {} không thể hoàn thành đơn {} vì lỗi: {}",
                             workerId, orderId, cause.getMessage());
                 }
 
                 @Override
                 public OrderResponse getOrder(Long orderId) {
-                    log.error("🚨 Circuit Breaker [getOrder] kích hoạt! Không lấy được thông tin đơn {} vì lỗi: {}",
+                    log.error("Circuit Breaker [getOrder] kích hoạt! Không lấy được thông tin đơn {} vì lỗi: {}",
                             orderId, cause.getMessage());
 
                     OrderResponse fallback = new OrderResponse();

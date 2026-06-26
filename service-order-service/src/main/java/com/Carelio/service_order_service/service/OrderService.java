@@ -15,12 +15,14 @@ import com.Carelio.service_order_service.entity.ServiceOrderStatus;
 import com.Carelio.service_order_service.mapper.OrderMapper;
 import com.Carelio.service_order_service.repository.OrderRepository;
 import com.Carelio.service_order_service.repository.PriceCatalogRepository;
+import com.Carelio.service_order_service.dto.event.*;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +42,8 @@ public class OrderService
     private final HouseholdClient householdClient;
     private final WorkerClient workerClient;
     private final PriceCatalogRepository priceCatalogRepository;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private static final String ORDER_TOPIC = "order-events-topic";
     // =========================================================================
     // SECTION 1: CÁC THAO TÁC CRUD (CUSTOMER LAYER)
     // =========================================================================
@@ -95,7 +99,9 @@ public class OrderService
         Order order = orderMapper.toEntity(request, userId, evResponse, ssResponse);
         order.setPrice(calculatedPrice);
         Order saved = orderRepository.save(order);
+        OrderPlacedEvent placedEvent = new OrderPlacedEvent(saved.getId(), userId, "POSTED");
         log.info("Order created successfully with ID: {} by user: {}", saved.getId(), userId);
+        kafkaTemplate.send(ORDER_TOPIC, String.valueOf(saved.getId()), placedEvent);
         return orderMapper.toResponse(saved);
     }
 
@@ -201,6 +207,13 @@ public class OrderService
         order.setStatus(ServiceOrderStatus.CLAIMED);
         order.setWorkerId(workerId);
         Order saved = orderRepository.save(order);
+        OrderAcceptedEvent acceptedEvent = new OrderAcceptedEvent(
+                saved.getId(),
+                saved.getUserId(),
+                workerId,
+                "CLAIMED"
+        );
+        kafkaTemplate.send(ORDER_TOPIC, String.valueOf(saved.getId()), acceptedEvent);
         log.info("Order ID: {} was claimed successfully by worker ID: {}", orderId, workerId);
         return orderMapper.toResponse(saved);
     }
