@@ -41,7 +41,7 @@ public class EquipmentService
 
     public List<EquipmentResponse> getAll(String userId)
     {
-        List<Equipment> equipments = equipmentRepository.findAllByIsDeletedFalseAndRoom_House_UserId(userId);
+        List<Equipment> equipments = equipmentRepository.findByRoom_House_UserId(userId);
         log.info("found {} equipment with userId: {}", equipments.size(), userId);
         return equipmentMapper.toResponseList(equipments);
     }

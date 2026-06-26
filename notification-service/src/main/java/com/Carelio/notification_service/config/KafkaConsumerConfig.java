@@ -9,7 +9,6 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
-import org.springframework.kafka.support.serializer.JsonDeserializer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -31,14 +30,11 @@ public class KafkaConsumerConfig {
         configProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         configProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        configProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.springframework.kafka.support.serializer.ErrorHandlingDeserializer");
+        configProps.put("spring.kafka.value.deserializer.delegate.class", "org.springframework.kafka.support.serializer.JsonDeserializer");
+        configProps.put("spring.json.trusted.packages", "com.Carelio.service_order_service.event, com.Carelio.notification_service.event");
 
-        // 🌟 Cấu hình giải mã JSON động
-        JsonDeserializer<Object> jsonDeserializer = new JsonDeserializer<>();
-
-        // 🚨 CHÍ MẠNG: Cho phép tin cậy các package chứa Class Event để ép kiểu không bị lỗi
-        jsonDeserializer.addTrustedPackages("com.Carelio.service_order_service.event", "com.Carelio.notification_service.event");
-
-        return new DefaultKafkaConsumerFactory<>(configProps, new StringDeserializer(), jsonDeserializer);
+        return new DefaultKafkaConsumerFactory<>(configProps);
     }
 
     @Bean

@@ -134,7 +134,7 @@ public class WorkerController
         return ResponseEntity.ok(workerService.getAllWorkerProfiles());
     }
 
-    @GetMapping
+    @GetMapping("/pagination")
     public ResponseEntity<Page<WorkerProfileResponse>> getAllWorkersWithPagination(
             @PageableDefault Pageable pageable
     )

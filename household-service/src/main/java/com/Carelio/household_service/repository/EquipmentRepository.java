@@ -23,4 +23,5 @@ public interface EquipmentRepository extends JpaRepository<Equipment, Long>
     List<Equipment> findAllByIsDeletedFalseAndRoom_House_UserId(String userId);
     Page<Equipment> findAllByIsDeletedFalseAndRoom_House_UserId(String userId, Pageable pageable);
 
+    List<Equipment> findByRoom_House_UserId(String userId);
 }

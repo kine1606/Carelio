@@ -1,8 +1,8 @@
-package listener;
+package com.Carelio.notification_service.listener;
 
-import event.OrderAcceptedEvent;
-import event.OrderPlacedEvent;
-import controller.NotificationController;
+import com.Carelio.notification_service.controller.NotificationController;
+import com.Carelio.notification_service.event.OrderAcceptedEvent;
+import com.Carelio.notification_service.event.OrderPlacedEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;

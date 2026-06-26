@@ -37,7 +37,7 @@ public class RoomController
         return roomService.getAll(userId);
     }
 
-    @GetMapping
+    @GetMapping("/pagination")
     public ResponseEntity<Page<RoomResponse>> getAllWithPagination(
             @AuthenticationPrincipal Jwt jwt,
             @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable

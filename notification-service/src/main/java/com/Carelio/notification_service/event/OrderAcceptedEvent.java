@@ -1,4 +1,4 @@
-package event;
+package com.Carelio.notification_service.event;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

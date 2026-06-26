@@ -35,7 +35,7 @@ public class RoomService
     public List<RoomResponse> getAll(String userId)
     {
         log.info("Get rooms by ownerId = {}", userId);
-        List<Room> rooms = roomRepository.findByHouse_UserIdAndIsDeletedFalse(userId);
+        List<Room> rooms = roomRepository.findByHouse_UserId(userId);
         log.info("Found {} rooms", rooms.size());
         return roomMapper.toResponseList(rooms);
     }

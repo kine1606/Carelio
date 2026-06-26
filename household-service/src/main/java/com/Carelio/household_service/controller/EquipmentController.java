@@ -38,7 +38,7 @@ public class EquipmentController
     }
 
     //GET /api/equipments?page=0&size=0&sort=id,desc
-    @GetMapping
+    @GetMapping("/pagination")
     public ResponseEntity<Page<EquipmentResponse>> getEquipmentWithPagination(
             @AuthenticationPrincipal Jwt jwt,
             @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
