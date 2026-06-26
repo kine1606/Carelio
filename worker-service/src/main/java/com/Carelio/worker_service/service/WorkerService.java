@@ -62,7 +62,7 @@ public class WorkerService
     }
 
     // GET /api/workers/{id}
-    @Cacheable(value = "WORKER_PROFILE_CACHE", key = "#userId")
+    @Cacheable(value = "WORKER_PROFILE_CACHE", key = "#id")
     public WorkerProfileResponse getById(Long id)
     {
         WorkerProfile workerProfile = workerProfileRepository.findById(id)
@@ -128,6 +128,8 @@ public class WorkerService
         return workerSkillMapper.toResponseList(skills);
     }
 
+    @Transactional
+    @CachePut(value = "WORKER_PROFILE_CACHE", key = "#userId")
     public WorkerProfileResponse acceptOrder(String userId, Long orderId)
     {
         WorkerProfile profile = workerProfileRepository.findByUserId(userId)
@@ -172,6 +174,8 @@ public class WorkerService
         return workerProfileMapper.toResponse(savedProfile);
     }
 
+    @Transactional
+    @CachePut(value = "WORKER_PROFILE_CACHE", key = "#userId")
     public WorkerProfileResponse startOrder(String userId, Long orderId)
     {
         WorkerProfile profile = workerProfileRepository.findByUserId(userId)
@@ -196,6 +200,8 @@ public class WorkerService
         return workerProfileMapper.toResponse(savedProfile);
     }
 
+    @Transactional
+    @CachePut(value = "WORKER_PROFILE_CACHE", key = "#userId")
     public WorkerProfileResponse completeOrder(String userId, Long orderId)
     {
         WorkerProfile profile = workerProfileRepository.findByUserId(userId)
@@ -215,7 +221,6 @@ public class WorkerService
         log.info("Worker {} have done order: {}, change status to AVAILABLE", workerId, orderId);
         return workerProfileMapper.toResponse(savedProfile);
     }
-
 
     @Transactional
     public WorkerProfile saveWorkerStatus(WorkerProfile profile, WorkerStatus status)

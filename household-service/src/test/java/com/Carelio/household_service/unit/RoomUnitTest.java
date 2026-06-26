@@ -88,7 +88,7 @@ class RoomServiceTest {
         @DisplayName("Nên trả về danh sách phòng chưa bị xóa của User")
         void shouldReturnRoomList_WhenUserHasActiveRooms() {
             // Given
-            when(roomRepository.findBySubmittingMethodOrSimilar(userId)).thenReturn(List.of(room));
+            when(roomRepository.findByHouse_UserId(userId)).thenReturn(List.of(room));
             when(roomMapper.toResponseList(any())).thenReturn(List.of(roomResponse));
 
             // When

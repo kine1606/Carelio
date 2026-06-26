@@ -21,4 +21,6 @@ public interface RoomRepository extends JpaRepository<Room, Long>
     Optional<Room> findByIdAndHouse_Id(Long roomId,  Long  houseId);
 
     List<Room> findByHouse_UserIdAndIsDeletedFalse(String userId);
+
+//    Object findBySubmittingMethodOrSimilar(String userId);
 }

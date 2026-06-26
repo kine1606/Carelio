@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/apu/internal/workers")
+@RequestMapping("/api/internal/workers")
 @RequiredArgsConstructor
 //@PreAuthorize("hasRole('WORKER') or hasRole('ADMIN')")
 public class InternalWorkerController {

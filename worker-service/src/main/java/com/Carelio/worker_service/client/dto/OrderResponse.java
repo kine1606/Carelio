@@ -9,6 +9,7 @@ import lombok.*;
 @Builder
 public class OrderResponse
 {
+    private Long orderId;
     private Long equipmentCategoryId;
     private Long serviceSkillId;
 }
