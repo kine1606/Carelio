@@ -1,4 +1,4 @@
-package com.Carelio.household_service;
+package com.Carelio.household_service.integration;
 
 import com.Carelio.household_service.dto.request.CreateEquipmentRequest;
 import com.Carelio.household_service.entity.*;
