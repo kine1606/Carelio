@@ -20,6 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +46,11 @@ public class EquipmentService
         return equipmentMapper.toResponseList(equipments);
     }
 
+    public Page<EquipmentResponse> getAllWithPagination(String userId, Pageable pageable)
+    {
+        Page<Equipment> equipmentPage = equipmentRepository.findAllByIsDeletedFalseAndRoom_House_UserId(userId, pageable);
+        return equipmentPage.map(equipmentMapper::toResponse);
+    }
     @Cacheable(value = "EQUIPMENT_CACHE", key = "#equipmentId")
     public EquipmentResponse getById(String userId, Long equipmentId)
     {

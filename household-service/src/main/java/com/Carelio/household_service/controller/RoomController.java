@@ -6,6 +6,11 @@ import com.Carelio.household_service.dto.response.RoomResponse;
 import com.Carelio.household_service.service.RoomService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -32,6 +37,15 @@ public class RoomController
         return roomService.getAll(userId);
     }
 
+    @GetMapping
+    public ResponseEntity<Page<RoomResponse>> getAllWithPagination(
+            @AuthenticationPrincipal Jwt jwt,
+            @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    )
+    {
+        String userId = jwt.getSubject();
+        return ResponseEntity.ok(roomService.getAllWithPagination(userId,pageable));
+    }
     // GET /api/rooms/{id}
     @GetMapping("/{id}")
     public RoomResponse getById(

@@ -6,6 +6,10 @@ import com.Carelio.household_service.dto.response.HouseResponse;
 import com.Carelio.household_service.service.HouseService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -40,6 +44,15 @@ public class HouseController {
         return ResponseEntity.ok(houseService.getAll(userId));
     }
 
+    @GetMapping
+    public ResponseEntity<Page<HouseResponse>> getAllWithPagination(
+            @AuthenticationPrincipal Jwt jwt,
+            @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    )
+    {
+        String userId = jwt.getSubject();
+        return ResponseEntity.ok(houseService.getAllWithPagination(userId, pageable));
+    }
     @GetMapping("/{id}")
     public ResponseEntity<HouseResponse> getById(
             @AuthenticationPrincipal Jwt jwt,

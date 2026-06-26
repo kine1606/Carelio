@@ -7,6 +7,11 @@ import com.Carelio.household_service.dto.response.EquipmentValidationResponse;
 import com.Carelio.household_service.service.EquipmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -30,6 +35,17 @@ public class EquipmentController
     {
         String userId = jwt.getSubject();
         return equipmentService.getAll(userId);
+    }
+
+    //GET /api/equipments?page=0&size=0&sort=id,desc
+    @GetMapping
+    public ResponseEntity<Page<EquipmentResponse>> getEquipmentWithPagination(
+            @AuthenticationPrincipal Jwt jwt,
+            @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    )
+    {
+        String userId = jwt.getSubject();
+        return  ResponseEntity.ok(equipmentService.getAllWithPagination(userId, pageable));
     }
 
     // GET /api/equipments/{equipmentId}

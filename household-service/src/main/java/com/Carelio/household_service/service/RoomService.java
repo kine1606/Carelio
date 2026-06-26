@@ -15,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +38,12 @@ public class RoomService
         List<Room> rooms = roomRepository.findByHouse_UserIdAndIsDeletedFalse(userId);
         log.info("Found {} rooms", rooms.size());
         return roomMapper.toResponseList(rooms);
+    }
+
+    public Page<RoomResponse> getAllWithPagination(String userId, Pageable pageable)
+    {
+        Page<Room> rooms = roomRepository.findByHouse_UserId(userId,pageable);
+        return rooms.map(roomMapper::toResponse);
     }
 
     @Cacheable(value = "ROOM_CACHE", key = "#roomId")
